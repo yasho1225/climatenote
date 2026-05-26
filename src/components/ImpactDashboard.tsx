@@ -69,29 +69,24 @@ export default function ImpactDashboard({ userProfile }: ImpactDashboardProps) {
 
   const loadStats = async () => {
     try {
-      // Collective stats
-      const { data: impacts } = await supabase
-        .from('note_impacts')
-        .select('co2_saved_kg, plastic_saved_g, water_saved_liters, energy_saved_kwh, action_category');
+      // Collective stats via security-definer aggregate (no per-user impact leak)
+      const { data: collective, error: collectiveError } = await supabase.rpc('get_collective_impact_stats');
+      if (collectiveError) throw collectiveError;
 
-      // Platform totals
       const { count: noteCount } = await supabase.from('user_notes').select('*', { count: 'exact', head: true });
       const { count: userCount } = await supabase.from('user_profiles').select('*', { count: 'exact', head: true });
 
-      if (impacts) {
-        const totals = impacts.reduce((acc, row) => ({
-          total_co2_kg:        acc.total_co2_kg + (row.co2_saved_kg || 0),
-          total_plastic_g:     acc.total_plastic_g + (row.plastic_saved_g || 0),
-          total_water_liters:  acc.total_water_liters + (row.water_saved_liters || 0),
-          total_energy_kwh:    acc.total_energy_kwh + (row.energy_saved_kwh || 0),
-        }), { total_co2_kg: 0, total_plastic_g: 0, total_water_liters: 0, total_energy_kwh: 0 });
-
-        const breakdown: Record<string, number> = {};
-        impacts.forEach(row => {
-          breakdown[row.action_category] = (breakdown[row.action_category] || 0) + 1;
+      if (collective) {
+        const breakdown = (collective.category_breakdown || {}) as Record<string, number>;
+        setStats({
+          total_co2_kg: collective.total_co2_kg || 0,
+          total_plastic_g: collective.total_plastic_g || 0,
+          total_water_liters: collective.total_water_liters || 0,
+          total_energy_kwh: collective.total_energy_kwh || 0,
+          total_notes: noteCount || 0,
+          total_users: userCount || 0,
+          category_breakdown: breakdown,
         });
-
-        setStats({ ...totals, total_notes: noteCount || 0, total_users: userCount || 0, category_breakdown: breakdown });
       }
 
       // My personal stats

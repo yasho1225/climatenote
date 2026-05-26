@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Save, X, Calendar, Clock, Tag, FileText, List } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
+import { normalizeAndSanitizeArticleInput } from '../lib/htmlSanitizer';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -66,12 +67,8 @@ export default function AdminPanel({ onClose, userId, isAdmin }: AdminPanelProps
       // Filter out empty takeaways
       const cleanTakeaways = formData.key_takeaways.filter(takeaway => takeaway.trim() !== '');
 
-      // Process content to handle image URLs
-      let processedContent = formData.content;
-
-      // Auto-convert plain image URLs to HTML img tags
-      const imageUrlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/gi;
-      processedContent = processedContent.replace(imageUrlRegex, '<img src="$1" alt="Article image" class="w-full rounded-lg my-4" />');
+      // Normalize plain image URLs, then sanitize all HTML to prevent stored XSS.
+      const processedContent = normalizeAndSanitizeArticleInput(formData.content);
 
       // Determine status based on admin privileges and checkbox
       let articleStatus = formData.status;
@@ -250,7 +247,7 @@ export default function AdminPanel({ onClose, userId, isAdmin }: AdminPanelProps
             <div className="text-sm text-gray-500 mt-2 space-y-1">
               <p><strong>HTML formatting:</strong> &lt;h2&gt;Title&lt;/h2&gt; &lt;p&gt;Text&lt;/p&gt; &lt;ul&gt;&lt;li&gt;List&lt;/li&gt;&lt;/ul&gt;</p>
               <p><strong>Images:</strong> Just paste image URLs (jpg, png, gif, webp) and they'll be automatically formatted</p>
-              <p><strong>Recommended:</strong> Use <a href="https://www.pexels.com" target="_blank" className="text-emerald-600 hover:underline">Pexels</a> or <a href="https://unsplash.com" target="_blank" className="text-emerald-600 hover:underline">Unsplash</a> for free stock photos</p>
+              <p><strong>Recommended:</strong> Use <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">Pexels</a> or <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">Unsplash</a> for free stock photos</p>
             </div>
           </div>
 
@@ -262,9 +259,9 @@ export default function AdminPanel({ onClose, userId, isAdmin }: AdminPanelProps
               <p><strong>Method 2:</strong> Use HTML: <code className="bg-white px-1 rounded">&lt;img src="URL" alt="description" /&gt;</code></p>
               <p><strong>Free Image Sources:</strong></p>
               <ul className="list-disc list-inside ml-4 space-y-1">
-                <li><a href="https://www.pexels.com/search/environment/" target="_blank" className="text-emerald-600 hover:underline">Pexels Environmental Photos</a></li>
-                <li><a href="https://unsplash.com/s/photos/climate-change" target="_blank" className="text-emerald-600 hover:underline">Unsplash Climate Photos</a></li>
-                <li><a href="https://www.pexels.com/search/sustainability/" target="_blank" className="text-emerald-600 hover:underline">Pexels Sustainability Photos</a></li>
+                <li><a href="https://www.pexels.com/search/environment/" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">Pexels Environmental Photos</a></li>
+                <li><a href="https://unsplash.com/s/photos/climate-change" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">Unsplash Climate Photos</a></li>
+                <li><a href="https://www.pexels.com/search/sustainability/" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">Pexels Sustainability Photos</a></li>
               </ul>
             </div>
           </div>

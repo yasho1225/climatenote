@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Article, UserProfile, UserNote } from '../types';
 import { showToast } from './ui/Toast';
 import NoteCardGenerator from './NoteCardGenerator';
+import { sanitizeArticleHtml } from '../lib/htmlSanitizer';
 
 interface ArticleViewProps {
   article: Article | null;
@@ -119,23 +120,14 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
           body: {
             note_id: noteData.id,
             note_content: noteData.content,
-            user_id: userProfile.id,
           },
         }).catch(err => console.error('Impact classification failed (non-critical):', err));
       }
 
-      const newStreak = userProfile.streak + 1;
-      const newTotalNotes = userProfile.total_notes + 1;
-
       const { data: updatedProfile, error: profileError } = await supabase
         .from('user_profiles')
-        .update({
-          streak: newStreak,
-          total_notes: newTotalNotes,
-          last_note_date: new Date().toISOString().split('T')[0],
-        })
+        .select('*')
         .eq('id', userProfile.id)
-        .select()
         .single();
 
       if (profileError) throw profileError;
@@ -144,7 +136,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
       setSavedNote(noteData);
       setHasNoteToday(true);
       setNoteStep('prompt');
-      showToast(`Note saved! ${newStreak} day streak! 🔥`, 'success');
+      showToast(`Note saved! ${updatedProfile.streak} day streak! 🔥`, 'success');
     } catch (error: any) {
       showToast(error.message, 'error');
       setNoteStep('selecting');
@@ -163,6 +155,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
   }
 
   const canSubmit = showCustom ? customText.trim().length > 0 : selectedSuggestion !== null;
+  const safeArticleContent = sanitizeArticleHtml(article.content || '');
 
   return (
     <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
@@ -202,7 +195,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
       {/* Article Content */}
       <div className="prose prose-sm sm:prose-base lg:prose-lg max-w-none mb-8 sm:mb-12 article-content">
         <div
-          dangerouslySetInnerHTML={{ __html: article.content }}
+          dangerouslySetInnerHTML={{ __html: safeArticleContent }}
           className="text-gray-800 leading-relaxed [&_img]:w-full [&_img]:rounded-lg [&_img]:my-4 sm:[&_img]:my-6 [&_img]:shadow-md"
         />
       </div>

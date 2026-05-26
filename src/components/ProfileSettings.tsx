@@ -192,7 +192,7 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-gray-900">Your Profile</h3>
+          <h3 className="font-bold text-gray-900">Profile &amp; Account</h3>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
@@ -280,12 +280,15 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
 
           {/* Delete Account */}
           <div className="pt-3 border-t border-gray-100">
+            <p className="mb-2 text-xs text-gray-500 text-center">
+              Need to remove your data? You can permanently delete your account here.
+            </p>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="w-full flex items-center justify-center gap-2 text-red-600 hover:bg-red-50 py-2.5 rounded-xl text-sm font-medium transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-              Delete Account
+              Delete Account Permanently
             </button>
           </div>
         </div>

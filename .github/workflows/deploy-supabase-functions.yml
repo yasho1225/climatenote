@@ -49,6 +49,13 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+      - name: Deploy delete-account
+        run: |
+          supabase functions deploy delete-account \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
       - name: Deployment Complete
         run: |
           echo "✅ All Edge Functions deployed successfully!"
@@ -56,3 +63,4 @@ jobs:
           echo "  - generate-action-suggestions"
           echo "  - classify-note-impact"
           echo "  - auto-publish-articles"
+          echo "  - delete-account"

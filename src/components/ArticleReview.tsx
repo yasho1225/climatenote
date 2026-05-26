@@ -3,6 +3,7 @@ import { CheckCircle, XCircle, Eye, Calendar, Clock, Tag, X } from 'lucide-react
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { Article } from '../types';
+import { sanitizeArticleHtml } from '../lib/htmlSanitizer';
 
 interface ArticleReviewProps {
   onClose: () => void;
@@ -244,7 +245,7 @@ export default function ArticleReview({ onClose }: ArticleReviewProps) {
                   </div>
 
                   <div className="prose prose-emerald max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: selectedArticle.content }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(selectedArticle.content || '') }} />
                   </div>
 
                   {selectedArticle.key_takeaways && selectedArticle.key_takeaways.length > 0 && (

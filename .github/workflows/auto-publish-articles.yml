@@ -34,6 +34,7 @@ jobs:
             -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/auto-publish-articles" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "x-cron-secret: ${{ secrets.AUTO_PUBLISH_SECRET }}" \
             -H "Content-Type: application/json")
 
           # Extract status code (last line) and body (everything before)

@@ -1,89 +1,114 @@
-// Delete Account Edge Function
 // Permanently deletes a user's account and all associated data
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { writeAuditLog } from '../_shared/auditLog.ts'
+import { requireAuthenticatedUser, createServiceClient } from '../_shared/auth.ts'
+import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
+import { checkRateLimit } from '../_shared/rateLimit.ts'
+import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const ENDPOINT = 'delete-account'
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsHeaders = getCorsHeaders(req)
+  const preflight = handleCorsPreflight(req)
+  if (preflight) return preflight
+
+  const ip = getClientIp(req)
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-    // Create a client with the user's JWT to verify identity
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
+    const auth = await requireAuthenticatedUser(req)
+    if (!auth.ok) {
+      logSecurityEvent({
+        endpoint: ENDPOINT,
+        result: 'blocked',
+        reason: auth.error,
+        ip,
+      })
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: auth.error }),
+        { status: auth.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    // Verify the user's JWT
-    const userClient = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-
-    const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if (userError || !user) {
+    const { user } = auth.ctx
+    const rate = checkRateLimit(`delete-account:${user.id}`, 3, 60_000)
+    if (rate.limited) {
+      logSecurityEvent({
+        endpoint: ENDPOINT,
+        result: 'blocked',
+        reason: 'rate_limit',
+        user_id: user.id,
+        ip,
+      })
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Too many deletion attempts. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
+    const adminClient = createServiceClient()
     const userId = user.id
 
-    // Use admin client to delete all user data and the auth user
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Delete user's notes
-    await adminClient
+    const { error: notesDeleteError } = await adminClient
       .from('user_notes')
       .delete()
       .eq('user_id', userId)
+    if (notesDeleteError) {
+      throw notesDeleteError
+    }
 
-    // Delete user's goals (if table exists)
-    await adminClient
+    const { error: goalsDeleteError } = await adminClient
       .from('user_goals')
       .delete()
       .eq('user_id', userId)
-      .then(() => {}, () => {}) // Ignore if table doesn't exist
+    if (goalsDeleteError && goalsDeleteError.code !== '42P01') {
+      throw goalsDeleteError
+    }
 
-    // Delete user's profile
-    await adminClient
+    const { error: profileDeleteError } = await adminClient
       .from('user_profiles')
       .delete()
       .eq('id', userId)
+    if (profileDeleteError) {
+      throw profileDeleteError
+    }
 
-    // Delete the auth user permanently
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId)
     if (deleteError) {
-      console.error('Error deleting auth user:', deleteError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to delete account' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      throw deleteError
     }
+
+    await writeAuditLog(adminClient, {
+      user_id: userId,
+      action: 'delete_account',
+      ip,
+      metadata: { success: true },
+    })
+
+    logSecurityEvent({
+      endpoint: ENDPOINT,
+      result: 'allowed',
+      reason: 'account_deleted',
+      user_id: userId,
+      ip,
+    })
 
     return new Response(
       JSON.stringify({ message: 'Account permanently deleted' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (error) {
-    console.error('Unexpected error:', error)
+    logSecurityEvent({
+      endpoint: ENDPOINT,
+      result: 'blocked',
+      reason: 'server_error',
+      ip,
+      metadata: { message: error instanceof Error ? error.message : 'unknown' },
+    })
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 })

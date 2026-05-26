@@ -4,13 +4,14 @@ import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
 import NoteCardGenerator from './NoteCardGenerator';
+import { colorSeedForProfile, publicAuthorInitial, publicAuthorName } from '../lib/publicProfile';
 
 interface NotebookViewProps {
   userProfile: UserProfile | null;
 }
 
 interface NoteWithReactions extends UserNote {
-  user_profiles: { email: string };
+  user_profiles: { display_name: string | null; id: string };
   articles: { title: string; published_date: string };
   reaction_count: number;
   user_has_reacted: boolean;
@@ -57,28 +58,30 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
         return;
       }
 
-      // Get reaction counts and user reactions for each note
       const noteIds = notesData.map(note => note.id);
-      
-      // Get reaction counts
-      const { data: reactionCounts, error: countError } = await supabase
-        .from('note_reactions')
-        .select('note_id')
-        .in('note_id', noteIds);
 
-      if (countError) throw countError;
+      let reactionCounts: { note_id: string }[] = [];
+      let userReactions: { note_id: string }[] = [];
 
-      // Get user's reactions if logged in
-      let userReactions: any[] = [];
-      if (userProfile) {
-        const { data: userReactionData, error: userReactionError } = await supabase
+      if (noteIds.length > 0) {
+        const { data: counts, error: countError } = await supabase
           .from('note_reactions')
           .select('note_id')
-          .in('note_id', noteIds)
-          .eq('user_id', userProfile.id);
+          .in('note_id', noteIds);
 
-        if (userReactionError) throw userReactionError;
-        userReactions = userReactionData || [];
+        if (countError) throw countError;
+        reactionCounts = counts || [];
+
+        if (userProfile) {
+          const { data: userReactionData, error: userReactionError } = await supabase
+            .from('note_reactions')
+            .select('note_id')
+            .in('note_id', noteIds)
+            .eq('user_id', userProfile.id);
+
+          if (userReactionError) throw userReactionError;
+          userReactions = userReactionData || [];
+        }
       }
 
       // Combine data
@@ -152,13 +155,13 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
     }
   };
 
-  const getCircleColor = (email: string) => {
+  const getCircleColor = (seed: string) => {
     const colors = [
       'bg-pink-300', 'bg-rose-300', 'bg-orange-300', 'bg-amber-300',
       'bg-yellow-300', 'bg-lime-300', 'bg-emerald-300', 'bg-teal-300',
       'bg-cyan-300', 'bg-sky-300', 'bg-blue-300', 'bg-violet-300'
     ];
-    const hash = email.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const hash = seed.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
     return colors[hash % colors.length];
   };
 
@@ -261,12 +264,12 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
                   <button
                     key={note.id}
                     onClick={(e) => handleCircleClick(note, e)}
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${getCircleColor(note.user_profiles.email)}
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${getCircleColor(colorSeedForProfile(note.user_profiles, note.user_id))}
                       hover:scale-125 transition-all duration-300 shadow-lg hover:shadow-2xl
                       border-3 border-white flex items-center justify-center text-white font-bold text-sm sm:text-base
                       hover:rotate-12 transform`}
                   >
-                    {note.user_profiles.email.charAt(0).toUpperCase()}
+                    {publicAuthorInitial(note.user_profiles)}
                   </button>
                 );
               })}
@@ -316,13 +319,13 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
 
             {/* User info */}
             <div className="flex items-center space-x-3 mb-4">
-              <div className={`w-12 h-12 rounded-full ${getCircleColor(popupNote.note.user_profiles.email)}
+              <div className={`w-12 h-12 rounded-full ${getCircleColor(colorSeedForProfile(popupNote.note.user_profiles, popupNote.note.user_id))}
                 flex items-center justify-center text-white font-bold text-lg shadow-md`}>
-                {popupNote.note.user_profiles.email.charAt(0).toUpperCase()}
+                {publicAuthorInitial(popupNote.note.user_profiles)}
               </div>
               <div>
                 <p className="font-bold text-gray-900">
-                  {popupNote.note.user_profiles.email.split('@')[0]}
+                  {publicAuthorName(popupNote.note.user_profiles)}
                 </p>
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <Calendar className="w-3 h-3" />

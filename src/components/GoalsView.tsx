@@ -183,8 +183,7 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
         newEnd.setDate(newEnd.getDate() + 7);
         updates = { status: 'active', end_date: newEnd.toISOString().split('T')[0] };
       } else if (decision === 'retry') {
-        // Create a fresh copy of the goal
-        await supabase.from('user_goals').insert({
+        const { error: insertError } = await supabase.from('user_goals').insert({
           user_id: goal.user_id,
           title: goal.title,
           description: goal.description,
@@ -197,6 +196,7 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
           category: goal.category,
           status: 'active',
         });
+        if (insertError) throw insertError;
         updates = { status: 'failed' };
       } else {
         updates = { status: 'failed' };

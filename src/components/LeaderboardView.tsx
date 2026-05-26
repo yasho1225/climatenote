@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Trophy, Star, Flame, X, Check, Medal } from 'lucide-react';
 import { UserProfile } from '../types';
+import { publicAuthorName } from '../lib/publicProfile';
 
 interface LeaderboardEntry {
   user_id: string;
-  email: string;
   display_name: string | null;
   streak: number;
   note_count: number;
@@ -90,7 +90,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const { start, end } = getCSTDateRange(p);
       const { data: notes, error } = await supabase
         .from('user_notes')
-        .select('user_id, user_profiles!inner(id, email, display_name, streak, avatar_url)')
+        .select('user_id, user_profiles!inner(id, display_name, streak, avatar_url)')
         .gte('created_at', start)
         .lte('created_at', end);
 
@@ -103,7 +103,6 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
         if (!grouped[note.user_id]) {
           grouped[note.user_id] = {
             user_id: note.user_id,
-            email: profile?.email || '',
             display_name: profile?.display_name || null,
             streak: profile?.streak || 0,
             avatar_url: profile?.avatar_url || null,
@@ -141,7 +140,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const noteIds = featured.map((f: any) => f.note_id);
       const { data: notes, error: notesError } = await supabase
         .from('user_notes')
-        .select('id, content, user_profiles!inner(email, display_name, streak)')
+        .select('id, content, user_profiles!inner(display_name, streak)')
         .in('id', noteIds);
 
       if (notesError) throw notesError;
@@ -154,8 +153,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const result: FeaturedNote[] = featured.map((f: any) => {
         const note = noteMap[f.note_id];
         const profile = note?.user_profiles;
-        const authorName = profile?.display_name ||
-          (profile?.email ? profile.email.split('@')[0] : 'Anonymous');
+        const authorName = publicAuthorName(profile);
         return {
           id: f.id,
           note_id: f.note_id,
@@ -177,7 +175,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
     const { start, end } = getCSTDateRange('daily');
     const { data, error } = await supabase
       .from('user_notes')
-      .select('id, content, created_at, user_id, user_profiles!inner(email, display_name)')
+      .select('id, content, created_at, user_id, user_profiles!inner(display_name)')
       .gte('created_at', start)
       .lte('created_at', end)
       .order('created_at', { ascending: false });
@@ -189,8 +187,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       content: n.content,
       created_at: n.created_at,
       user_id: n.user_id,
-      author_name: n.user_profiles?.display_name ||
-        (n.user_profiles?.email ? n.user_profiles.email.split('@')[0] : 'Anonymous'),
+      author_name: publicAuthorName(n.user_profiles),
     }));
     setTodayNotes(notes);
 
@@ -229,11 +226,11 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
     try {
       const todayStr = getCSTToday();
 
-      // Replace all featured notes for today
-      await supabase
+      const { error: deleteError } = await supabase
         .from('featured_notes')
         .delete()
         .eq('featured_date', todayStr);
+      if (deleteError) throw deleteError;
 
       if (selectedToFeature.size > 0) {
         const toInsert = Array.from(selectedToFeature).map((noteId) => {
@@ -261,7 +258,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
 
   // Display helpers
   const getDisplayName = (entry: LeaderboardEntry): string =>
-    entry.display_name || entry.email.split('@')[0] || 'Anonymous';
+    publicAuthorName(entry);
 
   const getInitials = (entry: LeaderboardEntry): string =>
     getDisplayName(entry).substring(0, 2).toUpperCase();

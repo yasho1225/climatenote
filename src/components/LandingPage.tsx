@@ -27,46 +27,32 @@ export default function LandingPage() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  console.log('LandingPage rendering...');
+  const isNative = Capacitor.isNativePlatform();
 
   const handleSocialAuth = async (provider: 'google' | 'apple') => {
+    // Safe no-op on native (callable from any UI path without touching loading state).
+    if (isNative) {
+      showToast('Please use email sign in on mobile.', 'error');
+      return;
+    }
+
+    if (loading) return;
+
     setLoading(true);
     try {
-      if (Capacitor.isNativePlatform()) {
-        // On native iOS/Android, use in-app browser (SFSafariViewController)
-        // to comply with App Store guideline 4 (no external browser for auth)
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
+        },
+      });
 
-        if (error) throw error;
-
-        if (data?.url) {
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({
-            url: data.url,
-            presentationStyle: 'popover',
-          });
-        }
-      } else {
-        // On web, use default Supabase redirect behavior
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
-          },
-        });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
       // User will be redirected to provider, then back to app
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`${provider} auth error:`, error);
       showToast(`Failed to sign in with ${provider}. Please try again.`, 'error');
+    } finally {
       setLoading(false);
     }
   };
@@ -210,8 +196,8 @@ export default function LandingPage() {
             </div>
           )}
 
-          {/* Social Login Buttons */}
-          {!showForgotPassword && (
+          {/* Social Login Buttons (web only) */}
+          {!showForgotPassword && !isNative && (
             <div className="space-y-3">
               <button
                 type="button"
@@ -239,6 +225,12 @@ export default function LandingPage() {
                 <span className="flex-shrink mx-4 text-gray-500 text-sm">or continue with email</span>
                 <div className="flex-grow border-t border-gray-300"></div>
               </div>
+            </div>
+          )}
+
+          {!showForgotPassword && isNative && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              Mobile app sign in and account creation are available directly with email below.
             </div>
           )}
 
