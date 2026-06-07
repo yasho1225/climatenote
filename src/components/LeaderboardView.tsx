@@ -3,6 +3,9 @@ import { supabase } from '../lib/supabase';
 import { Trophy, Star, Flame, X, Check, Medal } from 'lucide-react';
 import { UserProfile } from '../types';
 import { publicAuthorName } from '../lib/publicProfile';
+import { getAppToday, getAppDateRange } from '../lib/appTimezone';
+import { showToast } from './ui/Toast';
+import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -48,46 +51,13 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
   const [savingFeatures, setSavingFeatures] = useState(false);
 
   const isAdmin = userProfile?.role === 'admin';
-
-  // CST = UTC+8
-  const getCSTToday = (): string => {
-    const now = new Date();
-    const cstNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    return cstNow.toISOString().split('T')[0];
-  };
-
-  const getCSTDateRange = (p: Period): { start: string; end: string } => {
-    const now = new Date();
-    const cstNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-    const todayStr = cstNow.toISOString().split('T')[0];
-
-    if (p === 'daily') {
-      return {
-        start: `${todayStr}T00:00:00+08:00`,
-        end: `${todayStr}T23:59:59+08:00`,
-      };
-    } else if (p === 'weekly') {
-      const dayOfWeek = cstNow.getUTCDay(); // 0=Sun, 1=Mon, ...
-      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const mondayMs = cstNow.getTime() - daysFromMonday * 86400000;
-      const mondayStr = new Date(mondayMs).toISOString().split('T')[0];
-      return {
-        start: `${mondayStr}T00:00:00+08:00`,
-        end: `${todayStr}T23:59:59+08:00`,
-      };
-    } else {
-      const monthStart = `${todayStr.substring(0, 7)}-01`;
-      return {
-        start: `${monthStart}T00:00:00+08:00`,
-        end: `${todayStr}T23:59:59+08:00`,
-      };
-    }
-  };
+  const { nextGeneration, isCurrent } = useRequestGuard();
 
   const loadRankings = useCallback(async (p: Period) => {
+    const generation = nextGeneration();
     setLoading(true);
     try {
-      const { start, end } = getCSTDateRange(p);
+      const { start, end } = getAppDateRange(p);
       const { data: notes, error } = await supabase
         .from('user_notes')
         .select('user_id, user_profiles!inner(id, display_name, streak, avatar_url)')
@@ -113,17 +83,24 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       }
 
       const sorted = Object.values(grouped).sort((a, b) => b.note_count - a.note_count);
-      setRankings(sorted);
+      if (isCurrent(generation)) {
+        setRankings(sorted);
+      }
     } catch (err) {
       console.error('Error loading rankings:', err);
+      if (isCurrent(generation)) {
+        showToast('Failed to load leaderboard', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (isCurrent(generation)) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [nextGeneration, isCurrent]);
 
   const loadFeaturedNotes = useCallback(async () => {
     try {
-      const todayStr = getCSTToday();
+      const todayStr = getAppToday();
 
       const { data: featured, error } = await supabase
         .from('featured_notes')
@@ -172,7 +149,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
   }, []);
 
   const loadTodayNotesForModal = useCallback(async () => {
-    const { start, end } = getCSTDateRange('daily');
+    const { start, end } = getAppDateRange('daily');
     const { data, error } = await supabase
       .from('user_notes')
       .select('id, content, created_at, user_id, user_profiles!inner(display_name)')
@@ -224,7 +201,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
   const saveFeatureChoices = async () => {
     setSavingFeatures(true);
     try {
-      const todayStr = getCSTToday();
+      const todayStr = getAppToday();
 
       const { error: deleteError } = await supabase
         .from('featured_notes')
@@ -249,8 +226,10 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
 
       setShowFeatureModal(false);
       await loadFeaturedNotes();
+      showToast('Featured notes saved!', 'success');
     } catch (err) {
       console.error('Error saving featured notes:', err);
+      showToast('Failed to save featured notes', 'error');
     } finally {
       setSavingFeatures(false);
     }

@@ -15,7 +15,10 @@ import LeaderboardView from './LeaderboardView';
 import ProfileSettings from './ProfileSettings';
 import NotificationSettings from './NotificationSettings';
 import Tutorial from './Tutorial';
-import { Article, UserNote, UserProfile } from '../types';
+import { Article, UserProfile } from '../types';
+import { getAppToday } from '../lib/appTimezone';
+import { applySavedReminderSchedule, stopWebReminderSchedule } from '../lib/notificationScheduler';
+import { showToast } from './ui/Toast';
 
 interface DashboardProps {
   session: Session;
@@ -92,12 +95,13 @@ export default function Dashboard({ session }: DashboardProps) {
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
+      showToast('Failed to load your profile', 'error');
     }
   };
 
   const loadTodayArticle = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getAppToday();
 
       const { data, error } = await supabase
         .from('articles')
@@ -114,48 +118,25 @@ export default function Dashboard({ session }: DashboardProps) {
       setLoading(false);
     } catch (error) {
       console.error('Error loading today\'s article:', error);
+      showToast('Failed to load today\'s article', 'error');
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Set up notification scheduling when component mounts
-    const settings = localStorage.getItem('climateNoteSettings');
-    if (settings) {
-      const { browserNotifications, reminderTime } = JSON.parse(settings);
-      if (browserNotifications && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        scheduleNotifications(reminderTime);
-      }
-    }
+    void applySavedReminderSchedule();
+
+    const handleAppActive = () => {
+      loadTodayArticle();
+      loadUserProfile();
+    };
+    window.addEventListener('app-became-active', handleAppActive);
+
+    return () => {
+      stopWebReminderSchedule();
+      window.removeEventListener('app-became-active', handleAppActive);
+    };
   }, []);
-
-  const scheduleNotifications = (reminderTime: string) => {
-    const [hours, minutes] = reminderTime.split(':').map(Number);
-    const now = new Date();
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-
-    // If the time has passed today, schedule for tomorrow
-    if (scheduledTime <= now) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
-    }
-
-    const timeUntilNotification = scheduledTime.getTime() - now.getTime();
-
-    setTimeout(() => {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Time for your Climate Note! 🌱', {
-          body: 'Read today\'s environmental story and write your action note to keep your streak going.',
-          icon: '/favicon.ico',
-          tag: 'climate-note-reminder',
-          requireInteraction: true
-        });
-      }
-      
-      // Schedule the next day's notification
-      scheduleNotifications(reminderTime);
-    }, timeUntilNotification);
-  };
 
   if (loading) {
     return (

@@ -69,6 +69,9 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
     if (userProfile) {
       loadGoals();
       loadTemplates();
+    } else {
+      setLoading(false);
+      setGoals([]);
     }
   }, [userProfile]);
 
@@ -89,6 +92,7 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
       if (expired.length > 0) setDecisionGoal({ goal: expired[0] });
     } catch (error) {
       console.error('Error loading goals:', error);
+      showToast('Failed to load goals', 'error');
     } finally {
       setLoading(false);
     }
@@ -202,7 +206,8 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
         updates = { status: 'failed' };
       }
 
-      await supabase.from('user_goals').update(updates).eq('id', goal.id);
+      const { error: updateError } = await supabase.from('user_goals').update(updates).eq('id', goal.id);
+      if (updateError) throw updateError;
       setDecisionGoal(null);
       showToast(decision === 'mark_complete' ? 'Marked as complete! Great effort!' : decision === 'extend' ? 'Goal extended by 7 days!' : decision === 'retry' ? 'Fresh start created!' : 'Goal archived', 'success');
       loadGoals();
@@ -212,7 +217,9 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
   };
 
   const getProgressPercent = (goal: Goal) =>
-    Math.min(100, Math.round((goal.current_progress / goal.target_value) * 100));
+    goal.target_value <= 0
+      ? 0
+      : Math.min(100, Math.round((goal.current_progress / goal.target_value) * 100));
 
   const getDaysLeft = (endDate: string) => {
     const diff = new Date(endDate).getTime() - new Date().getTime();
@@ -236,6 +243,14 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-pulse text-emerald-600">Loading your goals...</div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <p className="text-gray-600 text-center">Sign in to view and manage your goals.</p>
       </div>
     );
   }

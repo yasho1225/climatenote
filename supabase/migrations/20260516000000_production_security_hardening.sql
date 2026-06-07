@@ -34,6 +34,11 @@ BEGIN
   ) INTO caller_is_admin;
 
   IF NOT caller_is_admin THEN
+    IF current_setting('app.profile_stats_sync', true) = 'on' THEN
+      NEW.role := OLD.role;
+      RETURN NEW;
+    END IF;
+
     IF NEW.role IS DISTINCT FROM OLD.role THEN
       NEW.role := OLD.role;
     END IF;
@@ -153,6 +158,8 @@ BEGIN
     next_streak := GREATEST(COALESCE(current_streak, 1), 1);
   END IF;
 
+  PERFORM set_config('app.profile_stats_sync', 'on', true);
+
   UPDATE user_profiles
   SET
     total_notes = COALESCE(total_notes, 0) + 1,
@@ -160,6 +167,8 @@ BEGIN
     last_note_date = CURRENT_DATE,
     updated_at = now()
   WHERE id = NEW.user_id;
+
+  PERFORM set_config('app.profile_stats_sync', 'off', true);
 
   RETURN NEW;
 END;

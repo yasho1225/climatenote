@@ -1,4 +1,10 @@
 import { useEffect, useState } from 'react';
+import {
+  loadNotificationSettings,
+  saveNotificationSettings,
+  startWebReminderSchedule,
+  stopWebReminderSchedule,
+} from '../lib/notificationScheduler';
 
 interface NotificationSettings {
   browserNotifications: boolean;
@@ -10,21 +16,23 @@ export function useNotifications() {
   const [settings, setSettings] = useState<NotificationSettings>({
     browserNotifications: false,
     reminderTime: '18:00',
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
   });
 
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
-    // Check notification permission
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
 
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('climateNoteSettings');
+    const savedSettings = loadNotificationSettings();
     if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+      setSettings({
+        browserNotifications: savedSettings.browserNotifications,
+        reminderTime: savedSettings.reminderTime,
+        lastUpdated: savedSettings.lastUpdated || new Date().toISOString(),
+      });
     }
   }, []);
 
@@ -34,46 +42,23 @@ export function useNotifications() {
       return false;
     }
 
-    const permission = await Notification.requestPermission();
-    setPermission(permission);
-    return permission === 'granted';
+    const result = await Notification.requestPermission();
+    setPermission(result);
+    return result === 'granted';
   };
 
   const scheduleReminder = (time: string) => {
     if (permission !== 'granted') return;
-
-    const [hours, minutes] = time.split(':').map(Number);
-    const now = new Date();
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-
-    // If time has passed today, schedule for tomorrow
-    if (scheduledTime <= now) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
-    }
-
-    const timeUntilNotification = scheduledTime.getTime() - now.getTime();
-
-    setTimeout(() => {
-      new Notification('Time for your Climate Note! 🌱', {
-        body: 'Read today\'s environmental story and write your action note.',
-        icon: '/favicon.ico',
-        tag: 'climate-note-reminder',
-        requireInteraction: true
-      });
-
-      // Schedule next day
-      scheduleReminder(time);
-    }, timeUntilNotification);
+    startWebReminderSchedule(time);
   };
 
   const sendStreakReminder = (streakCount: number) => {
     if (permission !== 'granted') return;
 
     new Notification(`${streakCount} Day Streak! 🔥`, {
-      body: 'Keep your climate action streak alive! Write today\'s note.',
+      body: "Keep your climate action streak alive! Write today's note.",
       icon: '/favicon.ico',
-      tag: 'streak-reminder'
+      tag: 'streak-reminder',
     });
   };
 
@@ -83,18 +68,23 @@ export function useNotifications() {
     new Notification('Someone encouraged your action! 💚', {
       body: message,
       icon: '/favicon.ico',
-      tag: 'encouragement'
+      tag: 'encouragement',
     });
   };
 
   const updateSettings = (newSettings: Partial<NotificationSettings>) => {
-    const updatedSettings = { ...settings, ...newSettings, lastUpdated: new Date().toISOString() };
+    const updatedSettings = {
+      ...settings,
+      ...newSettings,
+      lastUpdated: new Date().toISOString(),
+    };
     setSettings(updatedSettings);
-    localStorage.setItem('climateNoteSettings', JSON.stringify(updatedSettings));
+    saveNotificationSettings(updatedSettings);
 
-    // Schedule notifications if enabled
     if (updatedSettings.browserNotifications && permission === 'granted') {
       scheduleReminder(updatedSettings.reminderTime);
+    } else {
+      stopWebReminderSchedule();
     }
   };
 
@@ -105,6 +95,6 @@ export function useNotifications() {
     scheduleReminder,
     sendStreakReminder,
     sendEncouragementNotification,
-    updateSettings
+    updateSettings,
   };
 }

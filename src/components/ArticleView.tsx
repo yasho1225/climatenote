@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, StickyNote, CreditCard as Edit3, Send, CheckCircle, Share2, Sparkles, RefreshCw, PenLine } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Article, UserProfile, UserNote } from '../types';
 import { showToast } from './ui/Toast';
 import NoteCardGenerator from './NoteCardGenerator';
 import { sanitizeArticleHtml } from '../lib/htmlSanitizer';
+import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface ArticleViewProps {
   article: Article | null;
@@ -23,15 +24,29 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
   const [hasNoteToday, setHasNoteToday] = useState(false);
   const [savedNote, setSavedNote] = useState<UserNote | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
+  const { nextGeneration, isCurrent } = useRequestGuard();
+
+  const resetNoteState = useCallback(() => {
+    setNoteStep('prompt');
+    setSuggestions([]);
+    setSelectedSuggestion(null);
+    setShowCustom(false);
+    setCustomText('');
+    setHasNoteToday(false);
+    setSavedNote(null);
+    setShowShareCard(false);
+  }, []);
 
   useEffect(() => {
+    resetNoteState();
     if (article && userProfile) {
-      checkTodayNote();
+      void checkTodayNote();
     }
-  }, [article, userProfile]);
+  }, [article?.id, userProfile?.id]);
 
   const checkTodayNote = async () => {
     if (!article || !userProfile) return;
+    const generation = nextGeneration();
     try {
       const { data, error } = await supabase
         .from('user_notes')
@@ -39,6 +54,8 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
         .eq('user_id', userProfile.id)
         .eq('article_id', article.id)
         .maybeSingle();
+
+      if (!isCurrent(generation)) return;
 
       setHasNoteToday(!!data && !error);
       if (data && !error) setSavedNote(data);
@@ -112,7 +129,14 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
         .select()
         .single();
 
-      if (noteError) throw noteError;
+      if (noteError) {
+        if (noteError.code === '23505') {
+          showToast('You already saved a note for this article.', 'info');
+          await checkTodayNote();
+          return;
+        }
+        throw noteError;
+      }
 
       // Fire-and-forget AI impact classification
       if (noteData) {
@@ -137,8 +161,9 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
       setHasNoteToday(true);
       setNoteStep('prompt');
       showToast(`Note saved! ${updatedProfile.streak} day streak! 🔥`, 'success');
-    } catch (error: any) {
-      showToast(error.message, 'error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to save note';
+      showToast(message, 'error');
       setNoteStep('selecting');
     }
   };

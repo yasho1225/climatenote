@@ -10,7 +10,13 @@ export function normalizeArticleInput(rawContent: string): string {
 }
 
 export function sanitizeArticleHtml(html: string): string {
-  return DOMPurify.sanitize(html, {
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A' && node.getAttribute('target') === '_blank') {
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+
+  const sanitized = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       'p',
       'br',
@@ -32,7 +38,6 @@ export function sanitizeArticleHtml(html: string): string {
       'pre'
     ],
     ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target', 'rel', 'class'],
-    // Explicit allowlist: safe schemes, same-origin paths (not //protocol-relative), fragments, or colon-free relative names.
     ALLOWED_URI_REGEXP:
       /^(?:(?:https?|mailto):[^\s<>"']*|\/(?!\/)[^\s<>"']*|#[^\s<>"']*|[^:\s<>"'/][^\s<>"':]*)$/i,
     ALLOW_DATA_ATTR: false,
@@ -41,6 +46,9 @@ export function sanitizeArticleHtml(html: string): string {
     ADD_ATTR: ['target', 'rel'],
     RETURN_DOM: false,
   });
+
+  DOMPurify.removeHook('afterSanitizeAttributes');
+  return sanitized;
 }
 
 export function normalizeAndSanitizeArticleInput(rawContent: string): string {

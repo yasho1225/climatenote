@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Mail, NotebookPen, ArrowRight, Lock } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '../lib/supabase';
+import { getAuthRedirectUrl } from '../lib/authRedirect';
 import { showToast } from './ui/Toast';
 
 // SVG Icons for social login
@@ -30,25 +32,30 @@ export default function LandingPage() {
   const isNative = Capacitor.isNativePlatform();
 
   const handleSocialAuth = async (provider: 'google' | 'apple') => {
-    // Safe no-op on native (callable from any UI path without touching loading state).
-    if (isNative) {
-      showToast('Please use email sign in on mobile.', 'error');
-      return;
-    }
-
     if (loading) return;
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
+          redirectTo: getAuthRedirectUrl(),
+          skipBrowserRedirect: isNative,
         },
       });
 
       if (error) throw error;
-      // User will be redirected to provider, then back to app
+
+      if (isNative) {
+        if (!data.url) {
+          throw new Error('Unable to start sign in. Please try again.');
+        }
+
+        await Browser.open({
+          url: data.url,
+          presentationStyle: 'fullscreen',
+        });
+      }
     } catch (error: unknown) {
       console.error(`${provider} auth error:`, error);
       showToast(`Failed to sign in with ${provider}. Please try again.`, 'error');
@@ -61,8 +68,8 @@ export default function LandingPage() {
     e.preventDefault();
     if (!email || !showForgotPassword && !password) return;
 
-    if (!showForgotPassword && password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
+    if (!showForgotPassword && password.length < 8) {
+      showToast('Password must be at least 8 characters', 'error');
       return;
     }
 
@@ -70,9 +77,10 @@ export default function LandingPage() {
     try {
       if (showForgotPassword) {
         // Send password reset email
-        const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${appUrl}/reset-password`,
+          redirectTo: isNative
+            ? getAuthRedirectUrl('/auth/reset-password')
+            : getAuthRedirectUrl('/reset-password'),
         });
 
         if (error) throw error;
@@ -92,25 +100,28 @@ export default function LandingPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: getAuthRedirectUrl(),
+          },
         });
 
         if (error) throw error;
         showToast('Welcome! Setting up your account...', 'success');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '';
+
       // Handle specific error cases with user-friendly messages
-      if (error.message?.includes('User already registered') || error.message?.includes('user_already_exists')) {
+      if (message.includes('User already registered') || message.includes('user_already_exists')) {
         showToast('This email is already registered. Please log in instead.', 'error');
-        // Automatically switch to login mode for better UX
         setIsLogin(true);
-      } else if (error.message?.includes('Invalid login credentials')) {
+      } else if (message.includes('Invalid login credentials')) {
         showToast('Invalid email or password. Please check your credentials.', 'error');
-      } else if (error.message?.includes('Email not confirmed')) {
+      } else if (message.includes('Email not confirmed')) {
         showToast('Please check your email and click the confirmation link.', 'error');
       } else {
-        // Only log unexpected errors to console
         console.error('Unexpected auth error:', error);
-        showToast(error.message || 'Authentication failed', 'error');
+        showToast(message || 'Authentication failed. Please try again.', 'error');
       }
     } finally {
       setLoading(false);
@@ -196,8 +207,8 @@ export default function LandingPage() {
             </div>
           )}
 
-          {/* Social Login Buttons (web only) */}
-          {!showForgotPassword && !isNative && (
+          {/* Social Login Buttons */}
+          {!showForgotPassword && (
             <div className="space-y-3">
               <button
                 type="button"
@@ -230,7 +241,7 @@ export default function LandingPage() {
 
           {!showForgotPassword && isNative && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              Mobile app sign in and account creation are available directly with email below.
+              Social sign in opens a secure in-app browser and returns you here. Email sign in and account creation are available directly below.
             </div>
           )}
 
@@ -258,10 +269,10 @@ export default function LandingPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isLogin ? "Enter your password" : "Create a password (min 6 characters)"}
+                  placeholder={isLogin ? "Enter your password" : "Create a password (min 8 characters)"}
                   className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-lg transition-all"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
             )}

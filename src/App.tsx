@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from './lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import LandingPage from './components/LandingPage';
@@ -13,6 +14,21 @@ function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasSupabaseConfig, setHasSupabaseConfig] = useState(false);
+  const [, setRouteVersion] = useState(0);
+
+  useEffect(() => {
+    const refreshRoute = () => setRouteVersion((version) => version + 1);
+
+    window.addEventListener('hashchange', refreshRoute);
+    window.addEventListener('popstate', refreshRoute);
+    window.addEventListener('app-route-change', refreshRoute);
+
+    return () => {
+      window.removeEventListener('hashchange', refreshRoute);
+      window.removeEventListener('popstate', refreshRoute);
+      window.removeEventListener('app-route-change', refreshRoute);
+    };
+  }, []);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -20,7 +36,16 @@ function App() {
 
     const initializeApp = async () => {
       try {
-        // Check if environment variables are available
+        // Initialize Capacitor deep links before auth (cold-start URLs)
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const { CapacitorApp } = await import('./capacitor-plugins');
+            CapacitorApp.initialize();
+          } catch {
+            console.log('Capacitor not available, running in web mode');
+          }
+        }
+
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -31,14 +56,14 @@ function App() {
           try {
             // Get initial session with timeout
             const sessionPromise = supabase.auth.getSession();
-            const timeoutPromise = new Promise((_, reject) =>
+            const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('Session timeout')), 5000)
             );
 
             const { data: { session } } = await Promise.race([
               sessionPromise,
               timeoutPromise
-            ]) as any;
+            ]);
 
             if (!mounted) return;
             setSession(session);
@@ -60,16 +85,6 @@ function App() {
         } else {
           if (mounted) {
             setHasSupabaseConfig(false);
-          }
-        }
-
-        // Initialize Capacitor plugins only if available (non-blocking)
-        if (typeof window !== 'undefined' && 'Capacitor' in window) {
-          try {
-            const { CapacitorApp } = await import('./capacitor-plugins');
-            CapacitorApp.initialize();
-          } catch (capacitorError) {
-            console.log('Capacitor not available, running in web mode');
           }
         }
       } catch (error) {
@@ -94,16 +109,18 @@ function App() {
     };
   }, []);
 
+  // Handle hash-based routing for legal and native deep-link pages
+  const hashPath = window.location.hash.replace('#', '');
+
   // Check if this is a password reset page
   const isPasswordReset = window.location.pathname === '/reset-password' || 
+                          hashPath === '/reset-password' ||
                           window.location.hash.includes('type=recovery');
   
   // Check for legal pages
   const isPrivacyPolicy = window.location.pathname === '/privacy-policy';
   const isTermsOfService = window.location.pathname === '/terms-of-service';
   
-  // Handle hash-based routing for legal pages
-  const hashPath = window.location.hash.replace('#', '');
   const isPrivacyPolicyHash = hashPath === '/privacy-policy';
   const isTermsOfServiceHash = hashPath === '/terms-of-service';
   

@@ -229,16 +229,13 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a minute.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    const { note_id, note_content } = await req.json()
-    if (!note_id || !note_content) {
-      return new Response(JSON.stringify({ error: 'Missing note_id or note_content' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    const { note_id } = await req.json()
+    if (!note_id) {
+      return new Response(JSON.stringify({ error: 'Missing note_id' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     if (!isValidUuid(note_id)) {
       return new Response(JSON.stringify({ error: 'Invalid note_id format' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
-    if (!isValidNoteContent(note_content)) {
-      return new Response(JSON.stringify({ error: 'Invalid note_content' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY')
@@ -246,13 +243,18 @@ serve(async (req) => {
 
     const { data: ownedNote, error: noteLookupError } = await userClient
       .from('user_notes')
-      .select('id, user_id')
+      .select('id, user_id, content')
       .eq('id', note_id)
       .eq('user_id', user.id)
       .maybeSingle()
 
     if (noteLookupError || !ownedNote) {
       return new Response(JSON.stringify({ error: 'Forbidden: note does not belong to caller' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const note_content = ownedNote.content
+    if (!isValidNoteContent(note_content)) {
+      return new Response(JSON.stringify({ error: 'Invalid note content' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const supabase = createServiceClient()

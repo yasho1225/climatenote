@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BookOpen, Users, Heart, Calendar, X, Share2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
 import NoteCardGenerator from './NoteCardGenerator';
 import { colorSeedForProfile, publicAuthorInitial, publicAuthorName } from '../lib/publicProfile';
+import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface NotebookViewProps {
   userProfile: UserProfile | null;
@@ -28,19 +29,17 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
   const [popupNote, setPopupNote] = useState<PopupNote | null>(null);
   const [shareNote, setShareNote] = useState<(UserNote & { article_title?: string }) | null>(null);
+  const { nextGeneration, isCurrent } = useRequestGuard();
 
-  useEffect(() => {
-    loadNotes();
-  }, [filter, userProfile]);
-
-  const loadNotes = async () => {
+  const loadNotes = useCallback(async () => {
+    const generation = nextGeneration();
+    setLoading(true);
     try {
-      // First get the notes with basic info
       let notesQuery = supabase
         .from('user_notes')
         .select(`
           *,
-          user_profiles!inner(email),
+          user_profiles!inner(id, display_name),
           articles!inner(title, published_date)
         `)
         .order('created_at', { ascending: false })
@@ -54,7 +53,7 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
       if (notesError) throw notesError;
 
       if (!notesData) {
-        setNotes([]);
+        if (isCurrent(generation)) setNotes([]);
         return;
       }
 
@@ -91,13 +90,24 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
         user_has_reacted: userReactions.some(r => r.note_id === note.id)
       }));
 
-      setNotes(notesWithReactions);
+      if (isCurrent(generation)) {
+        setNotes(notesWithReactions);
+      }
     } catch (error) {
       console.error('Error loading notes:', error);
+      if (isCurrent(generation)) {
+        showToast('Failed to load notes', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (isCurrent(generation)) {
+        setLoading(false);
+      }
     }
-  };
+  }, [filter, userProfile, nextGeneration, isCurrent]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
 
   const handleEncourage = async (noteId: string, currentlyReacted: boolean) => {
     if (!userProfile) {
@@ -132,18 +142,22 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
       }
 
       // Update local state
-      setNotes(prevNotes => 
-        prevNotes.map(note => 
-          note.id === noteId 
-            ? {
-                ...note,
-                reaction_count: currentlyReacted 
-                  ? note.reaction_count - 1 
-                  : note.reaction_count + 1,
-                user_has_reacted: !currentlyReacted
-              }
-            : note
-        )
+      const updateNote = (note: NoteWithReactions) =>
+        note.id === noteId
+          ? {
+              ...note,
+              reaction_count: currentlyReacted
+                ? note.reaction_count - 1
+                : note.reaction_count + 1,
+              user_has_reacted: !currentlyReacted,
+            }
+          : note;
+
+      setNotes((prevNotes) => prevNotes.map(updateNote));
+      setPopupNote((prev) =>
+        prev && prev.note.id === noteId
+          ? { ...prev, note: updateNote(prev.note) }
+          : prev
       );
 
       if (!currentlyReacted) {

@@ -11,12 +11,14 @@
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id uuid,
   action text NOT NULL,
   ip text,
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE audit_log DROP CONSTRAINT IF EXISTS audit_log_user_id_fkey;
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);

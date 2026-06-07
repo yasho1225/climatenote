@@ -20,13 +20,18 @@ export function getCorsHeaders(req: Request): Record<string, string> {
   const allowOrigin =
     origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
 
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Headers':
       'authorization, x-client-info, apikey, content-type, x-cron-secret',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
   };
+
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = allowOrigin;
+  }
+
+  return headers;
 }
 
 export function handleCorsPreflight(req: Request): Response | null {
