@@ -7,9 +7,25 @@ import { requireAuthenticatedUser, createServiceClient } from '../_shared/auth.t
 import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts';
 import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts';
+import { callGeminiGenerateContent } from '../_shared/gemini.ts';
 import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts';
 
 const ENDPOINT = 'generate-action-suggestions';
+
+function normalizeSuggestionsPayload(parsed: unknown): string[] | null {
+  if (Array.isArray(parsed) && parsed.length === 3 && parsed.every((s) => typeof s === 'string')) {
+    return parsed;
+  }
+  if (parsed && typeof parsed === 'object') {
+    for (const key of ['suggestions', 'choices', 'actions']) {
+      const value = (parsed as Record<string, unknown>)[key];
+      if (Array.isArray(value) && value.length === 3 && value.every((s) => typeof s === 'string')) {
+        return value as string[];
+      }
+    }
+  }
+  return null;
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -137,36 +153,25 @@ Good examples for a fast fashion article:
 Bad examples (too vague — never do this):
 ["I will research more about fast fashion", "I'll make one small change in my daily routine", "I will track my progress for 7 days"]
 
-Return ONLY a valid JSON array of exactly 3 strings. No explanation, no markdown.`;
+Return ONLY a valid JSON object with this exact shape:
+{"suggestions": ["I will...", "I'll...", "I will..."]}
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+No explanation, no markdown.`;
+
+    const raw = await callGeminiGenerateContent(
+      geminiKey,
+      prompt,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 400,
-          },
-        }),
-      }
+        temperature: 0.8,
+        maxOutputTokens: 1200,
+      },
+      { jsonMode: true },
     );
 
-    if (!response.ok) {
-      throw new Error(`Gemini error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const raw = data.candidates[0].content.parts[0].text.trim();
-
-    // Strip markdown code fences if present
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-
-    // Parse and validate
-    const suggestions = JSON.parse(cleaned);
-    if (!Array.isArray(suggestions) || suggestions.length !== 3) {
+    const parsed = JSON.parse(cleaned);
+    const suggestions = normalizeSuggestionsPayload(parsed);
+    if (!suggestions) {
       throw new Error('Invalid suggestions format');
     }
 

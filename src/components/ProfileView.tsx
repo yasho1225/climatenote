@@ -10,6 +10,7 @@ import {
   CheckSquare,
   ChevronRight,
   User,
+  Trash2,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { getAvatarColor, getDisplayName, getInitials, getMasteryLevel } from '../lib/userDisplay';
@@ -26,6 +27,7 @@ interface ProfileViewProps {
   onWriterPanel: () => void;
   onArticleReview: () => void;
   onSignOut: () => void;
+  onDeleteAccount: () => void;
 }
 
 export default function ProfileView({
@@ -40,6 +42,7 @@ export default function ProfileView({
   onWriterPanel,
   onArticleReview,
   onSignOut,
+  onDeleteAccount,
 }: ProfileViewProps) {
   if (!userProfile) return null;
 
@@ -50,23 +53,23 @@ export default function ProfileView({
   });
 
   const menuItems = [
-    { icon: User, label: 'Edit profile', onClick: onEditProfile },
+    { icon: User, label: 'Profile & account', subtitle: 'Name, email, delete account', onClick: onEditProfile },
     { icon: Target, label: 'My goals', onClick: onGoals },
     { icon: Bell, label: 'Notifications', onClick: onNotifications },
     { icon: Flame, label: 'Leaderboard', onClick: onLeaderboard },
   ];
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-6 space-y-5">
-      <div className="bg-white rounded-4xl shadow-soft p-6 text-center">
+    <div className="max-w-lg mx-auto px-4 pb-6 space-y-5 pt-2">
+      <div className="card-surface p-6 text-center">
         <div
           className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center text-white text-2xl font-bold shadow-card ${getAvatarColor(userProfile.id)}`}
         >
           {getInitials(userProfile)}
         </div>
         <h2 className="mt-4 text-xl font-bold text-forest">{getDisplayName(userProfile)}</h2>
-        <p className="text-sm text-gray-500 mt-1">Level {mastery.level}: {mastery.title}</p>
-        <p className="text-xs text-gray-400 mt-1">Member since {memberSince}</p>
+        <p className="text-sm text-sage-600 mt-1">Level {mastery.level}: {mastery.title}</p>
+        <p className="text-xs text-sage-400 mt-1">Member since {memberSince}</p>
 
         <div className="grid grid-cols-2 gap-3 mt-6">
           <div className="bg-orange-50 rounded-2xl p-3">
@@ -82,8 +85,8 @@ export default function ProfileView({
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-card overflow-hidden">
-        {menuItems.map(({ icon: Icon, label, onClick }) => (
+      <div className="card-surface overflow-hidden">
+        {menuItems.map(({ icon: Icon, label, subtitle, onClick }) => (
           <button
             key={label}
             type="button"
@@ -93,14 +96,19 @@ export default function ProfileView({
             <div className="w-9 h-9 rounded-xl bg-sage-100 flex items-center justify-center">
               <Icon className="w-4 h-4 text-sage-600" />
             </div>
-            <span className="flex-1 text-left font-medium text-forest text-sm">{label}</span>
-            <ChevronRight className="w-4 h-4 text-gray-300" />
+            <div className="flex-1 text-left min-w-0">
+              <span className="block font-medium text-forest text-sm">{label}</span>
+              {subtitle ? (
+                <span className="block text-xs text-sage-500 mt-0.5">{subtitle}</span>
+              ) : null}
+            </div>
+            <ChevronRight className="w-4 h-4 text-sage-300 shrink-0" />
           </button>
         ))}
       </div>
 
       {(isWriter || isAdmin) && (
-        <div className="bg-white rounded-3xl shadow-card overflow-hidden">
+        <div className="card-surface overflow-hidden">
           <p className="px-4 pt-4 pb-2 text-xs font-bold text-sage-600 uppercase tracking-wider">
             Writer tools
           </p>
@@ -140,11 +148,28 @@ export default function ProfileView({
       <button
         type="button"
         onClick={onSignOut}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-3xl border border-red-200 text-red-600 font-semibold text-sm hover:bg-red-50 transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-3xl border border-sage-200 text-sage-700 font-semibold text-sm hover:bg-sage-50 transition-colors"
       >
         <LogOut className="w-4 h-4" />
         Sign out
       </button>
+
+      <div className="card-surface p-4 border border-red-100">
+        <p className="text-xs font-bold text-sage-600 uppercase tracking-wider mb-2">
+          Danger zone
+        </p>
+        <p className="text-xs text-sage-500 mb-3 leading-relaxed">
+          Permanently delete your account and all data. This cannot be undone.
+        </p>
+        <button
+          type="button"
+          onClick={onDeleteAccount}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-red-200 text-red-600 font-semibold text-sm hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+          Delete account
+        </button>
+      </div>
     </div>
   );
 }

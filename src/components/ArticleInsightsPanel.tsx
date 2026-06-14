@@ -96,7 +96,7 @@ export function ArticleSummaryCard({
         ))}
       </ul>
       {fromDemo && (
-        <p className="text-[10px] text-sage-500 mt-3 italic">Demo summary — connect Supabase for live AI</p>
+        <p className="text-[10px] text-sage-500 mt-3 italic">Offline preview — add Supabase env vars for live AI</p>
       )}
     </div>
   );
@@ -106,9 +106,15 @@ interface ArticleFigureSectionProps {
   figure: NonNullable<ArticleAiInsights['figure']>;
   expanded: boolean;
   onToggle: () => void;
+  loading?: boolean;
 }
 
-export function ArticleFigureSection({ figure, expanded, onToggle }: ArticleFigureSectionProps) {
+export function ArticleFigureSection({
+  figure,
+  expanded,
+  onToggle,
+  loading = false,
+}: ArticleFigureSectionProps) {
   return (
     <div className="border border-sage-100 rounded-3xl overflow-hidden bg-white shadow-card">
       <button
@@ -136,10 +142,21 @@ export function ArticleFigureSection({ figure, expanded, onToggle }: ArticleFigu
             <p className="text-xs text-sage-600 mt-2 leading-relaxed">{figure.headline}</p>
           </div>
 
-          {figure.chart && (
+          {loading ? (
+            <div className="mb-4 space-y-3 animate-pulse" aria-hidden>
+              <div className="h-3 bg-sage-200 rounded w-1/3" />
+              <div className="h-3 bg-sage-100 rounded w-full" />
+              <div className="h-3 bg-sage-100 rounded w-5/6" />
+              <div className="h-3 bg-sage-100 rounded w-4/6" />
+            </div>
+          ) : figure.chart ? (
             <div className="mb-4">
               <ArticleFigureChart chart={figure.chart} />
             </div>
+          ) : (
+            <p className="mb-4 text-xs text-sage-600 italic">
+              A chart will appear here once AI insights finish loading.
+            </p>
           )}
 
           <p className="text-[11px] text-sage-500 border-t border-sage-100 pt-3">

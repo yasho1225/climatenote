@@ -87,7 +87,7 @@ function FeaturedArticleCard({ article, onSelect }: { article: Article; onSelect
     <button
       type="button"
       onClick={onSelect}
-      className="w-full text-left mb-6 active:opacity-90 transition-opacity"
+      className="w-full text-left mb-6 active:opacity-90 transition-opacity last:mb-0"
     >
       {coverImage ? (
         <div className="mb-3 overflow-hidden rounded-2xl aspect-[16/10] bg-sage-100">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAppToday, getAppDateRange, APP_TIMEZONE } from './appTimezone';
+import { getAppToday, getAppDateRange, APP_TIMEZONE, addAppDays } from './appTimezone';
 
 describe('appTimezone', () => {
   it('uses America/Chicago timezone', () => {
@@ -21,5 +21,10 @@ describe('appTimezone', () => {
   it('returns weekly range starting on or before today', () => {
     const { start, end } = getAppDateRange('weekly');
     expect(start.slice(0, 10) <= end.slice(0, 10)).toBe(true);
+  });
+
+  it('adds calendar days in app date space', () => {
+    expect(addAppDays(7, '2026-06-01')).toBe('2026-06-08');
+    expect(addAppDays(-1, '2026-06-01')).toBe('2026-05-31');
   });
 });

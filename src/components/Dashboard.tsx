@@ -15,14 +15,17 @@ import ImpactDashboard from './ImpactDashboard';
 import LeaderboardView from './LeaderboardView';
 import ProfileView from './ProfileView';
 import ProfileSettings from './ProfileSettings';
+import DeleteAccountScreen from './DeleteAccountScreen';
 import NotificationSettings from './NotificationSettings';
 import Tutorial from './Tutorial';
 import { Article, UserProfile } from '../types';
 import { getAppToday } from '../lib/appTimezone';
 import { applySavedReminderSchedule, stopWebReminderSchedule } from '../lib/notificationScheduler';
 import { showToast } from './ui/Toast';
-import { reconcileProfileStatsIfNeeded } from '../lib/profileStats';
+import { loadFreshUserProfile } from '../lib/profileStats';
 import { defaultDisplayNameForUser } from '../lib/publicProfile';
+import { scrollAppToTop } from '../lib/scrollToTop';
+import { useScrollToTop } from '../hooks/useScrollToTop';
 
 interface DashboardProps {
   session: Session;
@@ -43,9 +46,26 @@ export default function Dashboard({ session }: DashboardProps) {
   const [showWriterPanel, setShowWriterPanel] = useState(false);
   const [showArticleReview, setShowArticleReview] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   const isAdmin = userProfile?.role === 'admin';
   const isWriter = userProfile?.role === 'writer' || isAdmin;
+
+  useScrollToTop(currentTab);
+  useScrollToTop(overlay);
+  useScrollToTop(showDeleteAccount);
+  useScrollToTop(showProfileSettings);
+  useScrollToTop(showAdminPanel);
+  useScrollToTop(showNotificationSettings);
+  useScrollToTop(selectedArchiveArticle?.id);
+
+  const handleTabChange = (tab: AppTab) => {
+    setCurrentTab(tab);
+    if (tab !== 'notes') {
+      setSelectedArchiveArticle(null);
+    }
+    scrollAppToTop();
+  };
 
   useEffect(() => {
     loadUserProfile();
@@ -63,7 +83,7 @@ export default function Dashboard({ session }: DashboardProps) {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        const profile = await reconcileProfileStatsIfNeeded(session.user.id, data);
+        const profile = await loadFreshUserProfile(session.user.id);
         setUserProfile(profile);
       } else {
         try {
@@ -93,8 +113,9 @@ export default function Dashboard({ session }: DashboardProps) {
               .single();
 
             if (retryError) throw retryError;
-            setUserProfile(existingProfile);
-            if (existingProfile.total_notes === 0) setShowTutorial(true);
+            const profile = await loadFreshUserProfile(session.user.id);
+            setUserProfile(profile);
+            if (profile.total_notes === 0) setShowTutorial(true);
           } else {
             throw createError;
           }
@@ -143,8 +164,11 @@ export default function Dashboard({ session }: DashboardProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
-        <div className="animate-pulse text-sage-600 text-sm">Loading...</div>
+      <div className="app-page flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4 card-glass px-8 py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-600 mx-auto" />
+          <div className="text-sage-600 text-sm">Loading The Climate Note...</div>
+        </div>
       </div>
     );
   }
@@ -152,33 +176,33 @@ export default function Dashboard({ session }: DashboardProps) {
   const headerVariant = currentTab === 'home' ? 'home' : 'title';
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="app-page">
       <AppHeader
         variant={headerVariant}
         userProfile={userProfile}
-        onProfilePress={() => setCurrentTab('profile')}
+        onProfilePress={() => handleTabChange('profile')}
         onNotificationsPress={() => setShowNotificationSettings(true)}
       />
 
-      <main className="pb-24">
+      <main className="app-main pb-24 pt-1" data-scroll-root>
         {currentTab === 'home' && (
           <HomeView
             article={todayArticle}
             userProfile={userProfile}
             onProfileUpdate={setUserProfile}
-            onOpenNotes={() => setCurrentTab('notes')}
+            onOpenNotes={() => handleTabChange('notes')}
           />
         )}
 
         {currentTab === 'community' && (
           <NotebookView
             userProfile={userProfile}
-            onWriteNote={() => setCurrentTab('home')}
+            onWriteNote={() => handleTabChange('home')}
           />
         )}
 
         {currentTab === 'notes' && (
-          <div className="max-w-lg mx-auto px-4 pb-6">
+          <div className="max-w-lg mx-auto px-4 pb-6 pt-2">
             {selectedArchiveArticle ? (
               <div>
                 <button
@@ -188,18 +212,22 @@ export default function Dashboard({ session }: DashboardProps) {
                 >
                   ← Back to archive
                 </button>
-                <div className="bg-white rounded-4xl shadow-card overflow-hidden">
+                <div className="card-surface overflow-hidden">
                   <ArticleView
                     article={selectedArchiveArticle}
                     userProfile={userProfile}
                     onProfileUpdate={setUserProfile}
+                    embedded
                   />
                 </div>
               </div>
             ) : (
               <>
-                <h1 className="font-serif text-[1.75rem] font-medium tracking-tight text-forest mb-2">Archive</h1>
-                <ArchiveView onArticleSelect={setSelectedArchiveArticle} />
+                <h1 className="page-title">Archive</h1>
+                <ArchiveView onArticleSelect={(article) => {
+                  setSelectedArchiveArticle(article);
+                  scrollAppToTop();
+                }} />
               </>
             )}
           </div>
@@ -220,15 +248,16 @@ export default function Dashboard({ session }: DashboardProps) {
             onWriterPanel={() => setShowWriterPanel(true)}
             onArticleReview={() => setShowArticleReview(true)}
             onSignOut={() => supabase.auth.signOut()}
+            onDeleteAccount={() => setShowDeleteAccount(true)}
           />
         )}
       </main>
 
-      <BottomNav current={currentTab} onChange={setCurrentTab} />
+      <BottomNav current={currentTab} onChange={handleTabChange} />
 
       {overlay === 'goals' && (
-        <div className="fixed inset-0 z-50 bg-cream overflow-y-auto pb-8">
-          <div className="sticky top-0 bg-cream/95 backdrop-blur px-4 py-3 flex items-center gap-3 border-b border-sage-100">
+        <div className="fixed inset-0 z-50 overflow-y-auto pb-8 app-overlay" data-scroll-root>
+          <div className="sticky top-0 app-chrome px-4 py-3 flex items-center gap-3 border-b safe-top">
             <button type="button" onClick={() => setOverlay(null)} className="text-sage-600 font-medium text-sm">
               ← Back
             </button>
@@ -239,8 +268,8 @@ export default function Dashboard({ session }: DashboardProps) {
       )}
 
       {overlay === 'leaderboard' && (
-        <div className="fixed inset-0 z-50 bg-cream overflow-y-auto pb-8">
-          <div className="sticky top-0 bg-cream/95 backdrop-blur px-4 py-3 flex items-center gap-3 border-b border-sage-100">
+        <div className="fixed inset-0 z-50 overflow-y-auto pb-8 app-overlay" data-scroll-root>
+          <div className="sticky top-0 app-chrome px-4 py-3 flex items-center gap-3 border-b safe-top">
             <button type="button" onClick={() => setOverlay(null)} className="text-sage-600 font-medium text-sm">
               ← Back
             </button>
@@ -266,8 +295,20 @@ export default function Dashboard({ session }: DashboardProps) {
             setUserProfile(updated);
             setShowProfileSettings(false);
           }}
-          onAccountDeleted={() => {
+          onRequestDeleteAccount={() => {
             setShowProfileSettings(false);
+            setShowDeleteAccount(true);
+          }}
+        />
+      )}
+
+      {showDeleteAccount && userProfile && (
+        <DeleteAccountScreen
+          email={userProfile.email}
+          onClose={() => setShowDeleteAccount(false)}
+          onDeleted={() => {
+            setShowDeleteAccount(false);
+            setUserProfile(null);
             supabase.auth.signOut();
           }}
         />

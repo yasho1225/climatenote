@@ -3,6 +3,7 @@ import { Target, Plus, X, Check, ChevronRight, Lock, Globe, Flame, Calendar, Tro
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserProfile } from '../types';
+import { getAppToday, addAppDays } from '../lib/appTimezone';
 
 interface Goal {
   id: string;
@@ -78,6 +79,13 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
   const loadGoals = async () => {
     if (!userProfile) return;
     try {
+      const { error: refreshError } = await supabase.rpc('refresh_user_goals', {
+        p_user_id: userProfile.id,
+      });
+      if (refreshError && refreshError.code !== 'PGRST202') {
+        console.warn('refresh_user_goals RPC unavailable:', refreshError.message);
+      }
+
       const { data, error } = await supabase
         .from('user_goals')
         .select('*')
@@ -113,14 +121,12 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
   };
 
   const applyTemplate = (template: GoalTemplate) => {
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + (template.suggested_duration_days || 30));
     setFormData({
       title: template.title,
       description: template.description,
       goal_type: template.goal_type as Goal['goal_type'],
       target_value: template.suggested_target || 30,
-      end_date: endDate.toISOString().split('T')[0],
+      end_date: addAppDays(template.suggested_duration_days || 30),
       is_public: false,
       category: template.category || '',
     });
@@ -145,7 +151,7 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
         goal_type: formData.goal_type,
         target_value: formData.target_value,
         current_progress: 0,
-        start_date: new Date().toISOString().split('T')[0],
+        start_date: getAppToday(),
         end_date: formData.end_date,
         is_public: formData.is_public,
         category: formData.category || null,
@@ -183,9 +189,7 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
       if (decision === 'mark_complete') {
         updates = { status: 'completed', completed_at: new Date().toISOString() };
       } else if (decision === 'extend') {
-        const newEnd = new Date(goal.end_date);
-        newEnd.setDate(newEnd.getDate() + 7);
-        updates = { status: 'active', end_date: newEnd.toISOString().split('T')[0] };
+        updates = { status: 'active', end_date: addAppDays(7, goal.end_date) };
       } else if (decision === 'retry') {
         const { error: insertError } = await supabase.from('user_goals').insert({
           user_id: goal.user_id,
@@ -194,8 +198,16 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
           goal_type: goal.goal_type,
           target_value: goal.target_value,
           current_progress: 0,
-          start_date: new Date().toISOString().split('T')[0],
-          end_date: new Date(Date.now() + (new Date(goal.end_date).getTime() - new Date(goal.start_date).getTime())).toISOString().split('T')[0],
+          start_date: getAppToday(),
+          end_date: addAppDays(
+            Math.max(
+              1,
+              Math.round(
+                (new Date(goal.end_date).getTime() - new Date(goal.start_date).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            )
+          ),
           is_public: goal.is_public,
           category: goal.category,
           status: 'active',
@@ -380,7 +392,7 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
                   type="date"
                   value={formData.end_date}
                   onChange={e => setFormData(p => ({ ...p, end_date: e.target.value }))}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={getAppToday()}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />

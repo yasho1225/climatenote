@@ -24,7 +24,9 @@ import { completeOAuthSignIn } from './lib/oauthCallback';
 
 import { getSupabaseConfigError } from './lib/validateSupabaseConfig';
 
-import MobileAppFrame from './components/layout/MobileAppFrame';
+import { scrollAppToTop } from './lib/scrollToTop';
+
+import MobileAppFrame, { FrameBackground } from './components/layout/MobileAppFrame';
 
 
 
@@ -38,7 +40,7 @@ function App() {
 
   const [configError, setConfigError] = useState<string | null>(null);
 
-  const [, setRouteVersion] = useState(0);
+  const [routeVersion, setRouteVersion] = useState(0);
 
 
 
@@ -67,6 +69,12 @@ function App() {
     };
 
   }, []);
+
+
+
+  useEffect(() => {
+    scrollAppToTop();
+  }, [routeVersion]);
 
 
 
@@ -276,15 +284,15 @@ function App() {
 
     return (
 
-      <MobileAppFrame>
+      <MobileAppFrame background="neutral">
 
-        <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center">
 
           <div className="text-center space-y-4">
 
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-600 mx-auto"></div>
 
-            <div className="text-emerald-600">Loading The Climate Note...</div>
+            <div className="text-sage-600 text-sm">Loading The Climate Note...</div>
 
           </div>
 
@@ -304,15 +312,15 @@ function App() {
 
     return (
 
-      <MobileAppFrame>
+      <MobileAppFrame background="neutral">
 
         <div className="min-h-screen">
 
           {configError ? (
 
-            <div className="min-h-screen bg-cream flex items-center justify-center p-6">
+            <div className="min-h-screen flex items-center justify-center p-6">
 
-              <div className="max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-soft">
+              <div className="max-w-md card-surface p-6">
 
                 <h1 className="text-lg font-bold text-forest mb-2">Supabase configuration problem</h1>
 
@@ -346,7 +354,7 @@ function App() {
 
     return (
 
-      <MobileAppFrame>
+      <MobileAppFrame background="neutral">
 
         <div className="min-h-screen">
 
@@ -370,7 +378,7 @@ function App() {
 
     return (
 
-      <MobileAppFrame>
+      <MobileAppFrame background="neutral">
 
         <div className="min-h-screen">
 
@@ -394,7 +402,7 @@ function App() {
 
     return (
 
-      <MobileAppFrame>
+      <MobileAppFrame background="neutral">
 
         <div className="min-h-screen">
 
@@ -412,9 +420,11 @@ function App() {
 
   
 
+  const mainFrameBackground: FrameBackground = session ? 'app' : 'landing';
+
   return (
 
-    <MobileAppFrame>
+    <MobileAppFrame background={mainFrameBackground}>
 
       <div className="min-h-screen">
 

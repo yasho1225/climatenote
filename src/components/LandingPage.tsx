@@ -11,6 +11,10 @@ import {
   type OAuthProvider,
 } from '../lib/authProviders';
 import { showToast } from './ui/Toast';
+import AppShell from './ui/AppShell';
+import GradientButton from './ui/GradientButton';
+import FloatingBottomBar from './layout/FloatingBottomBar';
+import { useScrollToTop } from '../hooks/useScrollToTop';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -43,6 +47,8 @@ export default function LandingPage() {
   const [oauthReady, setOauthReady] = useState(false);
 
   const isNative = Capacitor.isNativePlatform();
+
+  useScrollToTop(step);
 
   useEffect(() => {
     getEnabledOAuthProviders().then((providers) => {
@@ -154,193 +160,177 @@ export default function LandingPage() {
 
   if (step === 'welcome') {
     return (
-      <div className="relative min-h-screen bg-cream flex flex-col max-w-md mx-auto px-6">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-[55vh] bg-gradient-to-b from-sage-100/80 to-transparent"
-          aria-hidden
-        />
-
-        <div className="relative flex flex-col flex-1 pt-14 pb-8">
-          <header className="mb-10">
+      <AppShell forestVariant="full" className="max-w-md mx-auto">
+        <div className="relative flex flex-col min-h-screen px-6 pb-44">
+          <header className="pt-14 pb-8 safe-top">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-forest flex items-center justify-center">
-                <Leaf className="w-[18px] h-[18px] text-white" strokeWidth={2.25} />
+              <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+                <Leaf className="w-[18px] h-[18px] text-cream" strokeWidth={2.25} />
               </div>
-              <span className="text-sm font-semibold tracking-wide text-forest">The Climate Note</span>
+              <span className="text-sm font-semibold tracking-wide text-on-forest">The Climate Note</span>
             </div>
           </header>
 
-          <main className="flex-1 flex flex-col gap-8">
-            <div className="space-y-3">
-              <h1 className="font-serif text-[2rem] leading-[1.12] font-medium text-forest tracking-tight">
+          <main className="flex-1 flex flex-col justify-center gap-10 -mt-6">
+            <div className="space-y-4">
+              <h1 className="font-serif text-[2.25rem] leading-[1.1] font-medium text-on-forest tracking-tight">
                 Small actions,<br />big change.
               </h1>
-              <p className="text-[15px] text-sage-600 leading-relaxed max-w-[280px]">
+              <p className="text-[15px] text-cream/80 leading-relaxed max-w-[280px]">
                 One short story a day. One habit you can actually keep.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-sage-300 to-sage-400 rounded-4xl p-7 shadow-soft">
-              <p className="text-[10px] font-bold tracking-[0.18em] text-forest/60 uppercase mb-4">
+            <div className="card-glass p-6">
+              <p className="text-[10px] font-bold tracking-[0.18em] text-sage-600 uppercase mb-3">
                 Daily climate note
               </p>
-              <blockquote className="font-serif text-[1.35rem] leading-snug text-forest font-medium">
+              <blockquote className="font-serif text-[1.25rem] leading-snug text-forest font-medium">
                 &ldquo;Nature does not hurry, yet everything is accomplished.&rdquo;
               </blockquote>
-              <p className="mt-5 text-sm text-forest/75 leading-relaxed">
-                Read today&apos;s story, pick one action, build your streak with others.
-              </p>
             </div>
           </main>
-
-          <footer className="mt-10 space-y-3">
-            <button
-              type="button"
-              onClick={() => { setStep('auth'); setIsLogin(false); }}
-              className="w-full bg-forest hover:bg-forest-light text-white font-semibold py-4 rounded-full flex items-center justify-center gap-2 transition-colors shadow-soft"
-            >
-              Get started
-              <ArrowRight className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => { setStep('auth'); setIsLogin(true); }}
-              className="w-full py-3 text-sm font-medium text-sage-600 hover:text-forest transition-colors"
-            >
-              I already have an account
-            </button>
-            <div className="pt-2 flex justify-center gap-5 text-xs text-sage-400">
-              <a href="/privacy-policy" className="hover:text-sage-600">Privacy</a>
-              <a href="/terms-of-service" className="hover:text-sage-600">Terms</a>
-            </div>
-          </footer>
         </div>
-      </div>
+
+        <FloatingBottomBar>
+          <GradientButton onClick={() => { setStep('auth'); setIsLogin(false); }}>
+            Get started
+            <ArrowRight className="w-5 h-5" />
+          </GradientButton>
+          <button
+            type="button"
+            onClick={() => { setStep('auth'); setIsLogin(true); }}
+            className="btn-ghost mt-2"
+          >
+            I already have an account
+          </button>
+          <div className="pt-3 flex justify-center gap-5 text-xs text-sage-400">
+            <a href="/privacy-policy" className="hover:text-sage-600 transition-colors">Privacy</a>
+            <a href="/terms-of-service" className="hover:text-sage-600 transition-colors">Terms</a>
+          </div>
+        </FloatingBottomBar>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col max-w-md mx-auto px-6 py-8">
+    <div className="relative max-w-md mx-auto flex flex-col min-h-screen px-6 py-8 pb-10">
       <button
-        type="button"
-        onClick={() => setStep('welcome')}
-        className="text-sm text-sage-600 hover:text-forest mb-8 self-start transition-colors"
-      >
-        ← Back
-      </button>
+          type="button"
+          onClick={() => setStep('welcome')}
+          className="text-sm text-sage-600 hover:text-forest mb-8 self-start transition-colors"
+        >
+          ← Back
+        </button>
 
-      <div className="mb-8">
-        <h1 className="font-serif text-2xl font-medium text-forest tracking-tight">
-          {showForgotPassword ? 'Reset password' : isLogin ? 'Welcome back' : 'Create account'}
-        </h1>
-        <p className="mt-2 text-sm text-sage-600 leading-relaxed">
-          {showForgotPassword
-            ? 'We\'ll send a reset link to your email.'
-            : isLogin
-              ? 'Sign in to pick up your streak.'
-              : 'Join free — takes under a minute.'}
-        </p>
-      </div>
-
-      <div className="bg-white rounded-4xl border border-sage-100 shadow-soft p-6 space-y-5 flex-1">
-        {!showForgotPassword && (
-          <>
-            {!oauthReady ? (
-              <>
-                <div className="h-12 rounded-2xl bg-sage-50 animate-pulse" />
-                <div className="h-12 rounded-2xl bg-sage-50 animate-pulse" />
-              </>
-            ) : (
-              <>
-                {oauthProviders.google && (
-                  <button
-                    type="button"
-                    onClick={() => handleSocialAuth('google')}
-                    disabled={loading}
-                    className="w-full bg-cream border border-sage-200 py-3.5 rounded-2xl flex items-center justify-center gap-3 text-sm font-semibold text-forest"
-                  >
-                    <GoogleIcon />
-                    Continue with Google
-                  </button>
-                )}
-                {oauthProviders.apple && !isNative && (
-                  <button
-                    type="button"
-                    onClick={() => handleSocialAuth('apple')}
-                    disabled={loading}
-                    className="w-full bg-forest text-white py-3.5 rounded-2xl flex items-center justify-center gap-3 text-sm font-semibold"
-                  >
-                    <AppleIcon />
-                    Sign in with Apple
-                  </button>
-                )}
-              </>
-            )}
-
-            {(oauthProviders.google || (oauthProviders.apple && !isNative)) && oauthReady && (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-sage-100" />
-                <span className="text-xs text-sage-400">or</span>
-                <div className="flex-1 h-px bg-sage-100" />
-              </div>
-            )}
-          </>
-        )}
-
-        <form onSubmit={handleAuth} className="space-y-4">
-        <div className="relative">
-          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address"
-            className="w-full pl-12 pr-4 py-3.5 bg-cream/50 border border-sage-200 rounded-2xl focus:ring-2 focus:ring-sage-300 focus:border-transparent text-forest text-[15px]"
-            required
-          />
+        <div className="mb-8">
+          <h1 className="page-title">
+            {showForgotPassword ? 'Reset password' : isLogin ? 'Welcome back' : 'Create account'}
+          </h1>
+          <p className="text-sm text-sage-600 leading-relaxed">
+            {showForgotPassword
+              ? 'We\'ll send a reset link to your email.'
+              : isLogin
+                ? 'Sign in to pick up your streak.'
+                : 'Join free — takes under a minute.'}
+          </p>
         </div>
 
-        {!showForgotPassword && (
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password (min 8 characters)"
-              className="w-full pl-12 pr-4 py-3.5 bg-cream/50 border border-sage-200 rounded-2xl focus:ring-2 focus:ring-sage-300 focus:border-transparent text-forest text-[15px]"
-              required
-              minLength={8}
-            />
-          </div>
-        )}
-
-        {isLogin && !showForgotPassword && (
-          <button
-            type="button"
-            onClick={() => setShowForgotPassword(true)}
-            className="text-sm text-sage-600 hover:text-forest"
-          >
-            Forgot password?
-          </button>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-forest hover:bg-forest-light disabled:opacity-50 text-white font-semibold py-4 rounded-full flex items-center justify-center gap-2 shadow-soft"
-        >
-          {loading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
+        <div className="card-surface p-6 space-y-5 flex-1">
+          {!showForgotPassword && (
             <>
-              {showForgotPassword ? 'Send reset link' : isLogin ? 'Log in' : 'Sign up'}
-              <ArrowRight className="w-5 h-5" />
+              {!oauthReady ? (
+                <>
+                  <div className="h-12 rounded-2xl bg-sage-50 animate-pulse" />
+                  <div className="h-12 rounded-2xl bg-sage-50 animate-pulse" />
+                </>
+              ) : (
+                <>
+                  {oauthProviders.google && (
+                    <button
+                      type="button"
+                      onClick={() => handleSocialAuth('google')}
+                      disabled={loading}
+                      className="btn-outline"
+                    >
+                      <GoogleIcon />
+                      Continue with Google
+                    </button>
+                  )}
+                  {oauthProviders.apple && (
+                    <button
+                      type="button"
+                      onClick={() => handleSocialAuth('apple')}
+                      disabled={loading}
+                      className="btn-primary !bg-forest !bg-none"
+                    >
+                      <AppleIcon />
+                      Sign in with Apple
+                    </button>
+                  )}
+                </>
+              )}
+
+              {(oauthProviders.google || oauthProviders.apple) && oauthReady && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-sage-100" />
+                  <span className="text-xs text-sage-400">or</span>
+                  <div className="flex-1 h-px bg-sage-100" />
+                </div>
+              )}
             </>
           )}
-        </button>
-        </form>
-      </div>
+
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sage-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email address"
+                className="input-field"
+                required
+              />
+            </div>
+
+            {!showForgotPassword && (
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-sage-400" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password (min 8 characters)"
+                  className="input-field"
+                  required
+                  minLength={8}
+                />
+              </div>
+            )}
+
+            {isLogin && !showForgotPassword && (
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-sage-600 hover:text-forest transition-colors"
+              >
+                Forgot password?
+              </button>
+            )}
+
+            <GradientButton type="submit" disabled={loading}>
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  {showForgotPassword ? 'Send reset link' : isLogin ? 'Log in' : 'Sign up'}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </GradientButton>
+          </form>
+        </div>
     </div>
   );
 }

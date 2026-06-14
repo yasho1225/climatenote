@@ -20,9 +20,16 @@ export default {
           DEFAULT: '#2d4a32',
           light: '#4a634e',
           dark: '#1f3323',
+          deep: '#152318',
+          mid: '#1f3323',
+          glow: '#8ba88e',
+          accent: '#6d9470',
         },
         cream: '#f5f7f4',
-        earth: '#6b4f3a',
+        earth: {
+          DEFAULT: '#6b4f3a',
+          neutral: '#6b4f3a',
+        },
       },
       fontFamily: {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],
@@ -35,6 +42,13 @@ export default {
       boxShadow: {
         soft: '0 4px 24px -4px rgba(45, 74, 50, 0.12)',
         card: '0 2px 16px -2px rgba(45, 74, 50, 0.08)',
+        elevated: '0 8px 32px -6px rgba(21, 35, 24, 0.18)',
+        float: '0 -8px 40px -8px rgba(21, 35, 24, 0.14)',
+        btn: '0 6px 20px -4px rgba(45, 74, 50, 0.35)',
+      },
+      backgroundImage: {
+        'forest-gradient': 'linear-gradient(135deg, #4a634e 0%, #6d9470 50%, #8ba88e 100%)',
+        'forest-deep': 'linear-gradient(175deg, #152318 0%, #2d4a32 50%, #8ba88e 100%)',
       },
     },
   },

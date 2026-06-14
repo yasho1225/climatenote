@@ -19,7 +19,7 @@ export default function AppHeader({
   onNotificationsPress,
 }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur-md px-4 pt-3 pb-3 safe-top">
+    <header className="sticky top-0 z-40 app-chrome px-4 pt-3 pb-3 safe-top border-b">
       <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
         <button
           type="button"
@@ -58,7 +58,7 @@ export default function AppHeader({
         <button
           type="button"
           onClick={onNotificationsPress}
-          className="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sage-600 hover:bg-sage-200 transition-colors shrink-0 ml-auto"
+          className="w-10 h-10 rounded-full bg-sage-100/80 flex items-center justify-center text-sage-600 hover:bg-sage-200 transition-colors shrink-0 ml-auto shadow-card"
           aria-label="Notifications"
         >
           <Zap className="w-5 h-5" />

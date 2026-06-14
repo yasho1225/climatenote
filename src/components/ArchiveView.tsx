@@ -59,7 +59,7 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
     return (
       <div className="py-2">
         <ArticleCardSkeleton featured />
-        <div className="rounded-3xl border border-sage-100 bg-white px-3">
+        <div className="card-surface px-3">
           <ArticleCardSkeleton />
           <ArticleCardSkeleton />
         </div>
@@ -81,7 +81,7 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search stories..."
-            className="w-full pl-10 pr-4 py-3 text-[15px] text-forest placeholder:text-sage-400 bg-white border border-sage-200 rounded-2xl focus:ring-2 focus:ring-sage-400 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 text-[15px] text-forest placeholder:text-sage-400 input-field !pl-10"
           />
         </div>
 
@@ -91,8 +91,8 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
             onClick={() => setSelectedCategory('all')}
             className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
               selectedCategory === 'all'
-                ? 'bg-forest text-white'
-                : 'bg-white text-forest/80 border border-sage-200'
+                ? 'bg-forest text-white shadow-soft'
+                : 'card-glass text-forest/80'
             }`}
           >
             All
@@ -104,8 +104,8 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
               onClick={() => setSelectedCategory(category)}
               className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 selectedCategory === category
-                  ? 'bg-forest text-white'
-                  : 'bg-white text-forest/80 border border-sage-200'
+                  ? 'bg-forest text-white shadow-soft'
+                  : 'card-glass text-forest/80'
               }`}
             >
               {category}
@@ -116,18 +116,20 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
 
       {filteredArticles.length === 0 ? (
         <div className="text-center py-12">
-          <Archive className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <Archive className="w-12 h-12 text-sage-300 mx-auto mb-4" />
           <h3 className="text-editorial-title text-lg mb-2">No stories found</h3>
           <p className="text-[15px] text-forest/55">Try a different search or category.</p>
         </div>
       ) : (
         <>
           {featuredArticle && (
-            <ArticleCard
-              article={featuredArticle}
-              onSelect={onArticleSelect}
-              featured
-            />
+            <div className="card-surface p-4 mb-5">
+              <ArticleCard
+                article={featuredArticle}
+                onSelect={onArticleSelect}
+                featured
+              />
+            </div>
           )}
 
           {listArticles.length > 0 && (
@@ -135,7 +137,7 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
               <h2 className="text-editorial-label mb-3 px-1">
                 {selectedCategory === 'all' ? 'More stories' : selectedCategory}
               </h2>
-              <div className="rounded-3xl border border-sage-100 bg-white px-3 shadow-sm">
+              <div className="card-surface px-3">
                 {listArticles.map((article) => (
                   <ArticleCard
                     key={article.id}

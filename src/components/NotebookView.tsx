@@ -220,9 +220,9 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
   const co2Estimate = (notes.length * 1.2).toFixed(0);
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-24 relative">
+    <div className="max-w-lg mx-auto px-4 pb-24 relative pt-2">
       {/* Hero card */}
-      <div className="bg-white rounded-4xl shadow-soft p-6 mb-5">
+      <div className="card-surface p-6 mb-5">
         <h1 className="text-2xl font-bold text-forest mb-3">Community Notebook</h1>
         <div className="inline-flex items-center gap-2 bg-sage-100 text-sage-700 px-3 py-1.5 rounded-full text-xs font-semibold">
           <Leaf className="w-3.5 h-3.5" />
@@ -236,7 +236,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
           type="button"
           onClick={() => setFilter('all')}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            filter === 'all' ? 'bg-forest text-white' : 'bg-white text-gray-600 shadow-card'
+            filter === 'all' ? 'bg-forest text-white' : 'card-surface text-sage-600'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -246,7 +246,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
           type="button"
           onClick={() => setFilter('mine')}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            filter === 'mine' ? 'bg-forest text-white' : 'bg-white text-gray-600 shadow-card'
+            filter === 'mine' ? 'bg-forest text-white' : 'card-surface text-sage-600'
           }`}
         >
           <BookOpen className="w-4 h-4" />
@@ -261,7 +261,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
           {TRENDING.map(({ icon: Icon, label }) => (
             <div
               key={label}
-              className="shrink-0 w-28 bg-white rounded-3xl shadow-card p-4 flex flex-col items-center gap-2"
+              className="shrink-0 w-28 card-surface p-4 flex flex-col items-center gap-2"
             >
               <div className="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
                 <Icon className="w-5 h-5 text-sage-600" />
@@ -276,8 +276,8 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
       <div>
         <h2 className="text-base font-bold text-earth mb-3">Community Feed</h2>
         {notes.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-card p-8 text-center">
-            <p className="text-gray-500 text-sm">No notes yet. Be the first to share!</p>
+          <div className="card-surface p-8 text-center">
+            <p className="text-sage-600 text-sm">No notes yet. Be the first to share!</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -286,7 +286,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
                 key={note.id}
                 type="button"
                 onClick={(e) => handleCircleClick(note, e)}
-                className="w-full bg-white rounded-3xl shadow-card p-4 text-left hover:shadow-soft transition-shadow"
+                className="w-full card-surface p-4 text-left hover:shadow-soft transition-shadow"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${getCircleColor(colorSeedForProfile(note.user_profiles, note.user_id))}`}>
@@ -294,10 +294,10 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
                   </div>
                   <div>
                     <p className="font-semibold text-forest text-sm">{publicAuthorName(note.user_profiles)}</p>
-                    <p className="text-xs text-gray-400">{timeAgo(note.created_at)}</p>
+                    <p className="text-xs text-sage-400">{timeAgo(note.created_at)}</p>
                   </div>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{note.content}</p>
+                <p className="text-sm text-forest/75 leading-relaxed line-clamp-3">{note.content}</p>
               </button>
             ))}
           </div>

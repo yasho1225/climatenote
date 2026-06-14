@@ -9,6 +9,7 @@ import { isValidNoteContent, isValidUuid } from '../_shared/requestGuards.ts'
 import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
 import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts'
 import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts'
+import { callGeminiGenerateContent } from '../_shared/gemini.ts'
 import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts'
 
 const ENDPOINT = 'classify-note-impact'
@@ -100,25 +101,15 @@ Rules:
 
 Classify this climate action note: "${noteContent}"`
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+  const raw = await callGeminiGenerateContent(
+    geminiKey,
+    prompt,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 200,
-        },
-      }),
-    }
+      temperature: 0.1,
+      maxOutputTokens: 400,
+    },
+    { jsonMode: true },
   )
-
-  if (!response.ok) throw new Error(`Gemini API error: ${response.status}`)
-
-  const data = await response.json()
-  const raw = data.candidates[0]?.content?.parts[0]?.text?.trim()
   if (!raw) throw new Error('Empty response from Gemini')
 
   // Strip markdown code fences if present

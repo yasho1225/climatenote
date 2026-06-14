@@ -6,6 +6,16 @@ export function getAppToday(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIMEZONE }).format(new Date());
 }
 
+/** Add calendar days to an app-timezone date string (YYYY-MM-DD). */
+export function addAppDays(days: number, base = getAppToday()): string {
+  const [year, month, day] = base.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + days));
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getAppDateParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: APP_TIMEZONE,

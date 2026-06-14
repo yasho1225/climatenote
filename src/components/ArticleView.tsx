@@ -8,11 +8,14 @@ import { ArticleSummaryCard, ArticleFigureSection } from './ArticleInsightsPanel
 import { sanitizeArticleHtml } from '../lib/htmlSanitizer';
 import { useRequestGuard } from '../lib/useRequestGuard';
 import { refreshUserProfileStats } from '../lib/profileStats';
+import { getEdgeFunctionErrorMessage } from '../lib/edgeFunctions';
 import {
   fetchArticleInsights,
   getInstantSummaryBullets,
   hasCachedAiInsights,
+  hasCompleteAiInsights,
   hasSupabaseConfig,
+  resolveDisplayFigure,
 } from '../lib/articleInsights';
 
 interface ArticleViewProps {
@@ -20,11 +23,13 @@ interface ArticleViewProps {
   userProfile: UserProfile | null;
   onProfileUpdate: (profile: UserProfile) => void;
   compact?: boolean;
+  /** Tighter layout when rendered inside a card shell */
+  embedded?: boolean;
 }
 
 type NoteStep = 'prompt' | 'loading' | 'selecting' | 'submitting';
 
-export default function ArticleView({ article, userProfile, onProfileUpdate, compact = false }: ArticleViewProps) {
+export default function ArticleView({ article, userProfile, onProfileUpdate, compact = false, embedded = false }: ArticleViewProps) {
   const [noteStep, setNoteStep] = useState<NoteStep>('prompt');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
@@ -44,6 +49,11 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
 
   const summaryBullets = useMemo(
     () => (article ? getInstantSummaryBullets(article, insights) : []),
+    [article, insights],
+  );
+
+  const displayFigure = useMemo(
+    () => (article ? resolveDisplayFigure(article, insights) : null),
     [article, insights],
   );
 
@@ -83,6 +93,19 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
     }
   }, [article?.id, userProfile?.id]);
 
+  useEffect(() => {
+    if (!article?.id) return;
+    if (displayFigure?.chart) {
+      setShowStats(true);
+    }
+  }, [article?.id, displayFigure?.chart?.title]);
+
+  useEffect(() => {
+    if (!article || !userProfile || !hasSupabaseConfig()) return;
+    if (hasCompleteAiInsights(article)) return;
+    void loadInsights();
+  }, [article?.id, userProfile?.id]);
+
   const loadInsights = async (forceRegenerate = false): Promise<ArticleAiInsights | null> => {
     if (!article) return null;
     const generation = nextGeneration();
@@ -98,6 +121,10 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
       if (!isCurrent(generation)) return null;
       setInsights(result.insights);
       setInsightsFromDemo(result.fromDemo);
+      if (result.error) {
+        setInsightsError(result.error);
+        showToast(result.error, 'error');
+      }
       return result.insights;
     } catch (err) {
       if (!isCurrent(generation)) return null;
@@ -169,7 +196,11 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const message = await getEdgeFunctionErrorMessage(error, data);
+        throw new Error(message);
+      }
+      if (data?.error) throw new Error(String(data.error));
       if (data?.suggestions && Array.isArray(data.suggestions)) {
         setSuggestions(data.suggestions);
         setNoteStep('selecting');
@@ -178,6 +209,8 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
       throw new Error('No suggestions returned');
     } catch (err) {
       console.error('Failed to fetch suggestions:', err);
+      const message = err instanceof Error ? err.message : 'Failed to generate action suggestions';
+      showToast(message, 'error');
       // Fallback: use insights or key takeaways
       const fallbackChoices = insights?.choices ?? article.ai_insights?.choices;
       if (fallbackChoices?.length === 3) {
@@ -472,7 +505,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
+    <div className={embedded ? 'px-4 py-5' : 'max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12'}>
       {shareModal}
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
@@ -537,38 +570,13 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
           </div>
         )}
 
-        {insights?.figure && (
+        {displayFigure && (
           <ArticleFigureSection
-            figure={insights.figure}
+            figure={displayFigure}
             expanded={showStats}
             onToggle={() => setShowStats((v) => !v)}
+            loading={insightsLoading && !displayFigure.chart}
           />
-        )}
-
-        {!insights?.figure && article.key_statistics && article.key_statistics.length > 0 && (
-          <div className="border border-sage-100 rounded-3xl overflow-hidden bg-white shadow-card">
-            <button
-              type="button"
-              onClick={() => setShowStats((v) => !v)}
-              className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 text-left hover:bg-sage-50/50 transition-colors"
-            >
-              <span className="font-semibold text-sm text-forest">By the numbers</span>
-              {showStats ? (
-                <ChevronUp className="w-4 h-4 text-sage-500" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-sage-500" />
-              )}
-            </button>
-            {showStats && (
-              <div className="px-4 sm:px-5 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-sage-100 pt-4">
-                {article.key_statistics.map((stat, index) => (
-                  <div key={index} className="bg-cream rounded-2xl p-4">
-                    <p className="text-sm text-forest font-medium">{stat}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         )}
       </div>
 
