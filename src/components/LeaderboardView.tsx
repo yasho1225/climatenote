@@ -10,6 +10,7 @@ import { useRequestGuard } from '../lib/useRequestGuard';
 interface LeaderboardEntry {
   user_id: string;
   display_name: string | null;
+  email: string | null;
   streak: number;
   note_count: number;
   avatar_url: string | null;
@@ -60,7 +61,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const { start, end } = getAppDateRange(p);
       const { data: notes, error } = await supabase
         .from('user_notes')
-        .select('user_id, user_profiles!inner(id, display_name, streak, avatar_url)')
+        .select('user_id, user_profiles!inner(id, display_name, email, streak, avatar_url)')
         .gte('created_at', start)
         .lte('created_at', end);
 
@@ -74,6 +75,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
           grouped[note.user_id] = {
             user_id: note.user_id,
             display_name: profile?.display_name || null,
+            email: profile?.email || null,
             streak: profile?.streak || 0,
             avatar_url: profile?.avatar_url || null,
             note_count: 0,
@@ -117,7 +119,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const noteIds = featured.map((f: any) => f.note_id);
       const { data: notes, error: notesError } = await supabase
         .from('user_notes')
-        .select('id, content, user_profiles!inner(display_name, streak)')
+        .select('id, content, user_profiles!inner(display_name, email, streak)')
         .in('id', noteIds);
 
       if (notesError) throw notesError;
@@ -152,7 +154,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
     const { start, end } = getAppDateRange('daily');
     const { data, error } = await supabase
       .from('user_notes')
-      .select('id, content, created_at, user_id, user_profiles!inner(display_name)')
+      .select('id, content, created_at, user_id, user_profiles!inner(display_name, email)')
       .gte('created_at', start)
       .lte('created_at', end)
       .order('created_at', { ascending: false });

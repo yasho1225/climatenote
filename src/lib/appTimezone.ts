@@ -30,6 +30,55 @@ function toIsoDate(year: string, month: string, day: string): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Convert a Chicago wall-clock time on a given date to a UTC ISO string. */
+function chicagoLocalToUtcIso(dateStr: string, hour: number, minute: number, second: number): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const targetDate = dateStr;
+  const targetTime = `${pad(hour)}:${pad(minute)}:${pad(second)}`;
+
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const readChicago = (ms: number) => {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(ms)).map((part) => [part.type, part.value])
+    );
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+  };
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let guess = Date.UTC(year, month - 1, day, hour + 6, minute, second);
+
+  for (let i = 0; i < 8; i++) {
+    const got = readChicago(guess);
+    const target = `${targetDate}T${targetTime}`;
+    if (got === target) {
+      return new Date(guess).toISOString();
+    }
+
+    const targetMs = Date.parse(`${target}Z`);
+    const gotMs = Date.parse(`${got}Z`);
+    guess += targetMs - gotMs;
+  }
+
+  return new Date(guess).toISOString();
+}
+
+function dayBoundsUtc(dateStr: string): { start: string; end: string } {
+  return {
+    start: chicagoLocalToUtcIso(dateStr, 0, 0, 0),
+    end: chicagoLocalToUtcIso(dateStr, 23, 59, 59),
+  };
+}
+
 /** ISO date-time range strings for leaderboard queries (America/Chicago). */
 export function getAppDateRange(period: 'daily' | 'weekly' | 'monthly'): {
   start: string;
@@ -39,10 +88,7 @@ export function getAppDateRange(period: 'daily' | 'weekly' | 'monthly'): {
   const todayStr = toIsoDate(year, month, day);
 
   if (period === 'daily') {
-    return {
-      start: `${todayStr}T00:00:00`,
-      end: `${todayStr}T23:59:59`,
-    };
+    return dayBoundsUtc(todayStr);
   }
 
   if (period === 'weekly') {
@@ -64,15 +110,13 @@ export function getAppDateRange(period: 'daily' | 'weekly' | 'monthly'): {
       String(monday.getUTCMonth() + 1).padStart(2, '0'),
       String(monday.getUTCDate()).padStart(2, '0')
     );
-    return {
-      start: `${mondayStr}T00:00:00`,
-      end: `${todayStr}T23:59:59`,
-    };
+    const weekStart = dayBoundsUtc(mondayStr).start;
+    const weekEnd = dayBoundsUtc(todayStr).end;
+    return { start: weekStart, end: weekEnd };
   }
 
   const monthStart = `${year}-${month}-01`;
-  return {
-    start: `${monthStart}T00:00:00`,
-    end: `${todayStr}T23:59:59`,
-  };
+  const monthStartUtc = dayBoundsUtc(monthStart).start;
+  const monthEndUtc = dayBoundsUtc(todayStr).end;
+  return { start: monthStartUtc, end: monthEndUtc };
 }

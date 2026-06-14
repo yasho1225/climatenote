@@ -11,10 +11,11 @@ describe('appTimezone', () => {
     expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it('returns daily range with start before end', () => {
+  it('returns daily range with UTC ISO timestamps', () => {
     const { start, end } = getAppDateRange('daily');
     expect(start <= end).toBe(true);
-    expect(start).toContain('T00:00:00');
+    expect(start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
+    expect(end).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
   });
 
   it('returns weekly range starting on or before today', () => {

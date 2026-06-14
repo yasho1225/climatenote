@@ -38,7 +38,8 @@ export function Toaster() {
     const listener = (newToasts: Toast[]) => {
       setCurrentToasts(newToasts);
     };
-    
+
+    setCurrentToasts([...toasts]);
     listeners.push(listener);
     
     return () => {
@@ -58,7 +59,7 @@ export function Toaster() {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed mobile-frame-fixed top-4 right-4 z-50 space-y-2">
       {currentToasts.map((toast) => (
         <ToastComponent key={toast.id} toast={toast} onRemove={removeToast} />
       ))}

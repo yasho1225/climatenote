@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
-import { Mail, NotebookPen, ArrowRight, Lock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Mail, ArrowRight, Lock, Leaf } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 import { supabase } from '../lib/supabase';
 import { getAuthRedirectUrl } from '../lib/authRedirect';
+import { openInAppOAuth } from '../lib/nativeOAuth';
+import {
+  getEnabledOAuthProviders,
+  getOAuthProviderSetupMessage,
+  type EnabledOAuthProviders,
+  type OAuthProvider,
+} from '../lib/authProviders';
 import { showToast } from './ui/Toast';
 
-// SVG Icons for social login
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -22,18 +27,59 @@ const AppleIcon = () => (
   </svg>
 );
 
+type Step = 'welcome' | 'auth';
+
 export default function LandingPage() {
+  const [step, setStep] = useState<Step>('welcome');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [oauthProviders, setOauthProviders] = useState<EnabledOAuthProviders>({
+    google: false,
+    apple: false,
+  });
+  const [oauthReady, setOauthReady] = useState(false);
 
   const isNative = Capacitor.isNativePlatform();
 
-  const handleSocialAuth = async (provider: 'google' | 'apple') => {
-    if (loading) return;
+  useEffect(() => {
+    getEnabledOAuthProviders().then((providers) => {
+      setOauthProviders(providers);
+      setOauthReady(true);
+    });
+  }, []);
 
+  useEffect(() => {
+    if (!isNative) return;
+
+    const onAuthComplete = (event: Event) => {
+      const detail = (event as CustomEvent<{ ok: boolean; error?: string }>).detail;
+      setLoading(false);
+      if (detail?.ok) {
+        showToast('Signed in successfully!', 'success');
+      } else if (detail?.error) {
+        showToast(`Sign-in failed: ${detail.error}`, 'error');
+      }
+    };
+
+    const onBrowserClosed = () => setLoading(false);
+
+    window.addEventListener('native-auth-complete', onAuthComplete);
+    window.addEventListener('native-oauth-browser-closed', onBrowserClosed);
+    return () => {
+      window.removeEventListener('native-auth-complete', onAuthComplete);
+      window.removeEventListener('native-oauth-browser-closed', onBrowserClosed);
+    };
+  }, [isNative]);
+
+  const handleSocialAuth = async (provider: OAuthProvider) => {
+    if (loading) return;
+    if (!oauthProviders[provider]) {
+      showToast(getOAuthProviderSetupMessage(provider), 'error');
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -41,33 +87,27 @@ export default function LandingPage() {
         options: {
           redirectTo: getAuthRedirectUrl(),
           skipBrowserRedirect: isNative,
+          ...(provider === 'apple' ? { scopes: 'name email' } : {}),
         },
       });
-
       if (error) throw error;
-
-      if (isNative) {
-        if (!data.url) {
-          throw new Error('Unable to start sign in. Please try again.');
+      if (data.url) {
+        if (isNative) {
+          await openInAppOAuth(data.url);
+          return;
         }
-
-        await Browser.open({
-          url: data.url,
-          presentationStyle: 'fullscreen',
-        });
+        window.location.href = data.url;
       }
     } catch (error: unknown) {
-      console.error(`${provider} auth error:`, error);
-      showToast(`Failed to sign in with ${provider}. Please try again.`, 'error');
-    } finally {
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      showToast(`Failed to sign in with ${provider}: ${message}`, 'error');
       setLoading(false);
     }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !showForgotPassword && !password) return;
-
+    if (!email || (!showForgotPassword && !password)) return;
     if (!showForgotPassword && password.length < 8) {
       showToast('Password must be at least 8 characters', 'error');
       return;
@@ -76,292 +116,230 @@ export default function LandingPage() {
     setLoading(true);
     try {
       if (showForgotPassword) {
-        // Send password reset email
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: isNative
             ? getAuthRedirectUrl('/auth/reset-password')
             : getAuthRedirectUrl('/reset-password'),
         });
-
         if (error) throw error;
-        showToast('Password reset email sent! Check your inbox.', 'success');
+        showToast('Password reset email sent!', 'success');
         setShowForgotPassword(false);
       } else if (isLogin) {
-        // Sign in existing user
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         showToast('Welcome back!', 'success');
       } else {
-        // Sign up new user
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: getAuthRedirectUrl(),
-          },
+          options: { emailRedirectTo: getAuthRedirectUrl() },
         });
-
         if (error) throw error;
         showToast('Welcome! Setting up your account...', 'success');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : '';
-
-      // Handle specific error cases with user-friendly messages
       if (message.includes('User already registered') || message.includes('user_already_exists')) {
-        showToast('This email is already registered. Please log in instead.', 'error');
+        showToast('This email is already registered. Please log in.', 'error');
         setIsLogin(true);
       } else if (message.includes('Invalid login credentials')) {
-        showToast('Invalid email or password. Please check your credentials.', 'error');
-      } else if (message.includes('Email not confirmed')) {
-        showToast('Please check your email and click the confirmation link.', 'error');
+        showToast('Invalid email or password.', 'error');
       } else {
-        console.error('Unexpected auth error:', error);
-        showToast(message || 'Authentication failed. Please try again.', 'error');
+        showToast(message || 'Authentication failed.', 'error');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-6">
-      <div className="max-w-md w-full space-y-8 text-center">
-        {/* Logo */}
-        <div className="flex items-center justify-center space-x-3 mb-12">
-          <NotebookPen className="w-12 h-12 text-emerald-600" />
-          <h1 className="text-3xl font-bold text-gray-900">The Climate Note</h1>
-        </div>
+  if (step === 'welcome') {
+    return (
+      <div className="relative min-h-screen bg-cream flex flex-col max-w-md mx-auto px-6">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-[55vh] bg-gradient-to-b from-sage-100/80 to-transparent"
+          aria-hidden
+        />
 
-        {/* Main Content */}
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <h2 className="text-3xl font-bold text-gray-900 leading-tight">
-              {showForgotPassword ? (
-                <>
-                  Reset your password
-                </>
-              ) : (
-                <>
-                  {isLogin ? (
-                    <>Welcome back to your climate journey</>
-                  ) : (
-                    <>
-                      Daily climate action,
-                      <span className="text-emerald-600"> delivered to your inbox</span>
-                    </>
-                  )}
-                </>
-              )}
-            </h2>
-            {!showForgotPassword && (
-              <>
-                <p className="text-emerald-700 font-semibold text-lg italic">
-                  Environmental issues and solutions — written by the youth, for the youth
-                </p>
-                <p className="text-gray-600 text-base">
-                  {isLogin ? (
-                    "Continue your journey of climate action and environmental impact."
-                  ) : (
-                    "Join our newsletter to discover untold environmental stories and turn reading into action through personalized sustainability notes."
-                  )}
-                </p>
-              </>
-            )}
-          </div>
-
-          {/* Toggle between Sign Up, Login, and Forgot Password */}
-          {!showForgotPassword && (
-            <div className="flex items-center justify-center space-x-1 text-sm">
-              <button
-                onClick={() => {
-                  setIsLogin(false);
-                  setPassword('');
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  !isLogin
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Sign Up
-              </button>
-              <span className="text-gray-400">|</span>
-              <button
-                onClick={() => {
-                  setIsLogin(true);
-                  setPassword('');
-                }}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  isLogin
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Log In
-              </button>
+        <div className="relative flex flex-col flex-1 pt-14 pb-8">
+          <header className="mb-10">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-forest flex items-center justify-center">
+                <Leaf className="w-[18px] h-[18px] text-white" strokeWidth={2.25} />
+              </div>
+              <span className="text-sm font-semibold tracking-wide text-forest">The Climate Note</span>
             </div>
-          )}
+          </header>
 
-          {/* Social Login Buttons */}
-          {!showForgotPassword && (
+          <main className="flex-1 flex flex-col gap-8">
             <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => handleSocialAuth('google')}
-                disabled={loading}
-                className="w-full bg-white hover:bg-gray-50 disabled:opacity-50 text-gray-700 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 text-base shadow-md hover:shadow-lg border border-gray-200"
-              >
-                <GoogleIcon />
-                <span>Continue with Google</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSocialAuth('apple')}
-                disabled={loading}
-                className="w-full bg-black hover:bg-gray-900 disabled:opacity-50 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 text-base shadow-md hover:shadow-lg"
-              >
-                <AppleIcon />
-                <span>Sign in with Apple</span>
-              </button>
-
-              {/* Divider */}
-              <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="flex-shrink mx-4 text-gray-500 text-sm">or continue with email</span>
-                <div className="flex-grow border-t border-gray-300"></div>
-              </div>
-            </div>
-          )}
-
-          {!showForgotPassword && isNative && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              Social sign in opens a secure in-app browser and returns you here. Email sign in and account creation are available directly below.
-            </div>
-          )}
-
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-lg transition-all"
-                required
-              />
-            </div>
-
-            {!showForgotPassword && (
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isLogin ? "Enter your password" : "Create a password (min 8 characters)"}
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder-gray-500 text-lg transition-all"
-                  required
-                  minLength={8}
-                />
-              </div>
-            )}
-
-            {/* Forgot Password Link */}
-            {isLogin && !showForgotPassword && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-sm text-emerald-600 hover:text-emerald-700 transition-colors"
-                >
-                  Forgot your password?
-                </button>
-              </div>
-            )}
-
-            {/* Back to Login Link */}
-            {showForgotPassword && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPassword(false)}
-                  className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  ← Back to login
-                </button>
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 text-lg shadow-lg hover:shadow-xl"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                <>
-                  <span>
-                    {showForgotPassword
-                      ? 'Send Reset Email'
-                      : isLogin
-                        ? 'Log In'
-                        : 'Sign Up to Our Newsletter'
-                    }
-                  </span>
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="text-sm text-gray-500 space-y-2">
-            {showForgotPassword ? (
-              <p className="text-gray-600 text-center">
-                Enter your email address and we'll send you a link to reset your password.
+              <h1 className="font-serif text-[2rem] leading-[1.12] font-medium text-forest tracking-tight">
+                Small actions,<br />big change.
+              </h1>
+              <p className="text-[15px] text-sage-600 leading-relaxed max-w-[280px]">
+                One short story a day. One habit you can actually keep.
               </p>
-            ) : !isLogin ? (
+            </div>
+
+            <div className="bg-gradient-to-br from-sage-300 to-sage-400 rounded-4xl p-7 shadow-soft">
+              <p className="text-[10px] font-bold tracking-[0.18em] text-forest/60 uppercase mb-4">
+                Daily climate note
+              </p>
+              <blockquote className="font-serif text-[1.35rem] leading-snug text-forest font-medium">
+                &ldquo;Nature does not hurry, yet everything is accomplished.&rdquo;
+              </blockquote>
+              <p className="mt-5 text-sm text-forest/75 leading-relaxed">
+                Read today&apos;s story, pick one action, build your streak with others.
+              </p>
+            </div>
+          </main>
+
+          <footer className="mt-10 space-y-3">
+            <button
+              type="button"
+              onClick={() => { setStep('auth'); setIsLogin(false); }}
+              className="w-full bg-forest hover:bg-forest-light text-white font-semibold py-4 rounded-full flex items-center justify-center gap-2 transition-colors shadow-soft"
+            >
+              Get started
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => { setStep('auth'); setIsLogin(true); }}
+              className="w-full py-3 text-sm font-medium text-sage-600 hover:text-forest transition-colors"
+            >
+              I already have an account
+            </button>
+            <div className="pt-2 flex justify-center gap-5 text-xs text-sage-400">
+              <a href="/privacy-policy" className="hover:text-sage-600">Privacy</a>
+              <a href="/terms-of-service" className="hover:text-sage-600">Terms</a>
+            </div>
+          </footer>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-cream flex flex-col max-w-md mx-auto px-6 py-8">
+      <button
+        type="button"
+        onClick={() => setStep('welcome')}
+        className="text-sm text-sage-600 hover:text-forest mb-8 self-start transition-colors"
+      >
+        ← Back
+      </button>
+
+      <div className="mb-8">
+        <h1 className="font-serif text-2xl font-medium text-forest tracking-tight">
+          {showForgotPassword ? 'Reset password' : isLogin ? 'Welcome back' : 'Create account'}
+        </h1>
+        <p className="mt-2 text-sm text-sage-600 leading-relaxed">
+          {showForgotPassword
+            ? 'We\'ll send a reset link to your email.'
+            : isLogin
+              ? 'Sign in to pick up your streak.'
+              : 'Join free — takes under a minute.'}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-4xl border border-sage-100 shadow-soft p-6 space-y-5 flex-1">
+        {!showForgotPassword && (
+          <>
+            {!oauthReady ? (
               <>
-                <p>✅ Free daily climate newsletter with youth perspectives</p>
-                <p>✅ Track your climate action with personal notes</p>
-                <p>✅ Join a community of young environmental champions</p>
-                <p>✅ Turn reading into real environmental impact</p>
+                <div className="h-12 rounded-2xl bg-sage-50 animate-pulse" />
+                <div className="h-12 rounded-2xl bg-sage-50 animate-pulse" />
               </>
             ) : (
-              <p className="text-gray-600">Welcome back! Enter your credentials to continue your climate journey.</p>
+              <>
+                {oauthProviders.google && (
+                  <button
+                    type="button"
+                    onClick={() => handleSocialAuth('google')}
+                    disabled={loading}
+                    className="w-full bg-cream border border-sage-200 py-3.5 rounded-2xl flex items-center justify-center gap-3 text-sm font-semibold text-forest"
+                  >
+                    <GoogleIcon />
+                    Continue with Google
+                  </button>
+                )}
+                {oauthProviders.apple && !isNative && (
+                  <button
+                    type="button"
+                    onClick={() => handleSocialAuth('apple')}
+                    disabled={loading}
+                    className="w-full bg-forest text-white py-3.5 rounded-2xl flex items-center justify-center gap-3 text-sm font-semibold"
+                  >
+                    <AppleIcon />
+                    Sign in with Apple
+                  </button>
+                )}
+              </>
             )}
-          </div>
+
+            {(oauthProviders.google || (oauthProviders.apple && !isNative)) && oauthReady && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-sage-100" />
+                <span className="text-xs text-sage-400">or</span>
+                <div className="flex-1 h-px bg-sage-100" />
+              </div>
+            )}
+          </>
+        )}
+
+        <form onSubmit={handleAuth} className="space-y-4">
+        <div className="relative">
+          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email address"
+            className="w-full pl-12 pr-4 py-3.5 bg-cream/50 border border-sage-200 rounded-2xl focus:ring-2 focus:ring-sage-300 focus:border-transparent text-forest text-[15px]"
+            required
+          />
         </div>
-        
-        {/* Legal Links */}
-        <div className="text-center mt-8 pt-6 border-t border-gray-200">
-          <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
-            <a 
-              href="/privacy-policy" 
-              className="hover:text-emerald-600 transition-colors"
-            >
-              Privacy Policy
-            </a>
-            <span>•</span>
-            <a 
-              href="/terms-of-service" 
-              className="hover:text-emerald-600 transition-colors"
-            >
-              Terms of Service
-            </a>
+
+        {!showForgotPassword && (
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password (min 8 characters)"
+              className="w-full pl-12 pr-4 py-3.5 bg-cream/50 border border-sage-200 rounded-2xl focus:ring-2 focus:ring-sage-300 focus:border-transparent text-forest text-[15px]"
+              required
+              minLength={8}
+            />
           </div>
-        </div>
+        )}
+
+        {isLogin && !showForgotPassword && (
+          <button
+            type="button"
+            onClick={() => setShowForgotPassword(true)}
+            className="text-sm text-sage-600 hover:text-forest"
+          >
+            Forgot password?
+          </button>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-forest hover:bg-forest-light disabled:opacity-50 text-white font-semibold py-4 rounded-full flex items-center justify-center gap-2 shadow-soft"
+        >
+          {loading ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              {showForgotPassword ? 'Send reset link' : isLogin ? 'Log in' : 'Sign up'}
+              <ArrowRight className="w-5 h-5" />
+            </>
+          )}
+        </button>
+        </form>
       </div>
     </div>
   );

@@ -1,3 +1,27 @@
+export interface ArticleFigureChart {
+  type: 'bar';
+  title: string;
+  labels: string[];
+  values: number[];
+  unit: string;
+}
+
+export interface ArticleFigure {
+  headline: string;
+  stat_value: string;
+  stat_label: string;
+  source: string;
+  source_url: string | null;
+  chart: ArticleFigureChart | null;
+}
+
+export interface ArticleAiInsights {
+  summary: string[];
+  choices: string[];
+  figure: ArticleFigure;
+  generated_at: string;
+}
+
 export interface Article {
   id: string;
   title: string;
@@ -9,6 +33,7 @@ export interface Article {
   is_published: boolean;
   key_takeaways?: string[];
   key_statistics?: string[];
+  ai_insights?: ArticleAiInsights | null;
   created_at: string;
   updated_at: string;
 }

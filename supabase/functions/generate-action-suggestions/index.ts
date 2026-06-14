@@ -47,7 +47,31 @@ serve(async (req) => {
       );
     }
 
-    const { article_title, article_subtitle, key_takeaways, article_content } = await req.json();
+    const { article_id, article_title, article_subtitle, key_takeaways, article_content, force_regenerate } = await req.json();
+
+    // Return cached choices from article if available
+    if (typeof article_id === 'string' && article_id.length > 0 && !force_regenerate) {
+      const adminClient = createServiceClient();
+      const { data: cachedArticle } = await adminClient
+        .from('articles')
+        .select('ai_insights')
+        .eq('id', article_id)
+        .maybeSingle();
+
+      const cachedChoices = cachedArticle?.ai_insights?.choices;
+      if (Array.isArray(cachedChoices) && cachedChoices.length === 3) {
+        await writeAuditLog(adminClient, {
+          user_id: user.id,
+          action: 'generate_action_suggestions',
+          ip,
+          metadata: { article_id, cache_hit: true },
+        });
+        return new Response(
+          JSON.stringify({ suggestions: cachedChoices, cached: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
     if (typeof article_title !== 'string' || article_title.trim().length === 0 || article_title.length > 200) {
       return new Response(
         JSON.stringify({ error: 'Invalid article_title' }),
@@ -86,9 +110,9 @@ serve(async (req) => {
       ? `Key takeaways:\n${key_takeaways.map((t: string) => `- ${t}`).join('\n')}`
       : '';
 
-    // Truncate content to keep tokens low
+    // Truncate content to keep tokens reasonable while preserving context
     const contentSnippet = article_content
-      ? article_content.replace(/<[^>]*>/g, '').substring(0, 800)
+      ? article_content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 2000)
       : '';
 
     const prompt = `You are an environmental action coach for teenagers. Generate exactly 3 personal action commitments based on this specific article.
@@ -124,7 +148,7 @@ Return ONLY a valid JSON array of exactly 3 strings. No explanation, no markdown
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.8,
-            maxOutputTokens: 200,
+            maxOutputTokens: 400,
           },
         }),
       }

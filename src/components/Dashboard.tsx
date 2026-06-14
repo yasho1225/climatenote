@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import Header from './Header';
+import AppHeader, { AppTab } from './layout/AppHeader';
+import BottomNav from './layout/BottomNav';
+import HomeView from './home/HomeView';
 import AdminPanel from './AdminPanel';
 import WriterPanel from './WriterPanel';
 import ArticleReview from './ArticleReview';
 import ArticleView from './ArticleView';
 import NotebookView from './NotebookView';
 import ArchiveView from './ArchiveView';
-import AboutView from './AboutView';
 import GoalsView from './GoalsView';
 import ImpactDashboard from './ImpactDashboard';
 import LeaderboardView from './LeaderboardView';
+import ProfileView from './ProfileView';
 import ProfileSettings from './ProfileSettings';
 import NotificationSettings from './NotificationSettings';
 import Tutorial from './Tutorial';
@@ -19,13 +21,18 @@ import { Article, UserProfile } from '../types';
 import { getAppToday } from '../lib/appTimezone';
 import { applySavedReminderSchedule, stopWebReminderSchedule } from '../lib/notificationScheduler';
 import { showToast } from './ui/Toast';
+import { reconcileProfileStatsIfNeeded } from '../lib/profileStats';
+import { defaultDisplayNameForUser } from '../lib/publicProfile';
 
 interface DashboardProps {
   session: Session;
 }
 
+type Overlay = 'goals' | 'leaderboard' | null;
+
 export default function Dashboard({ session }: DashboardProps) {
-  const [currentView, setCurrentView] = useState<'article' | 'notebook' | 'archive' | 'about' | 'goals' | 'impact' | 'leaderboard'>('article');
+  const [currentTab, setCurrentTab] = useState<AppTab>('home');
+  const [overlay, setOverlay] = useState<Overlay>(null);
   const [todayArticle, setTodayArticle] = useState<Article | null>(null);
   const [selectedArchiveArticle, setSelectedArchiveArticle] = useState<Article | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -36,6 +43,9 @@ export default function Dashboard({ session }: DashboardProps) {
   const [showWriterPanel, setShowWriterPanel] = useState(false);
   const [showArticleReview, setShowArticleReview] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+
+  const isAdmin = userProfile?.role === 'admin';
+  const isWriter = userProfile?.role === 'writer' || isAdmin;
 
   useEffect(() => {
     loadUserProfile();
@@ -53,15 +63,17 @@ export default function Dashboard({ session }: DashboardProps) {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setUserProfile(data);
+        const profile = await reconcileProfileStatsIfNeeded(session.user.id, data);
+        setUserProfile(profile);
       } else {
-        // Create profile if it doesn't exist
         try {
+          const defaultDisplayName = defaultDisplayNameForUser(session.user);
           const { data: newProfile, error: createError } = await supabase
             .from('user_profiles')
             .insert({
               id: session.user.id,
               email: session.user.email,
+              ...(defaultDisplayName ? { display_name: defaultDisplayName } : {}),
               streak: 0,
               total_notes: 0,
             })
@@ -70,12 +82,10 @@ export default function Dashboard({ session }: DashboardProps) {
 
           if (createError) throw createError;
           setUserProfile(newProfile);
-          // Show tutorial for new users
           setShowTutorial(true);
-        } catch (createError: any) {
-          // If profile creation fails due to duplicate key (concurrent creation)
-          if (createError.code === '23505') {
-            // Retry fetching the existing profile
+        } catch (createError: unknown) {
+          const pgError = createError as { code?: string };
+          if (pgError.code === '23505') {
             const { data: existingProfile, error: retryError } = await supabase
               .from('user_profiles')
               .select('*')
@@ -84,10 +94,7 @@ export default function Dashboard({ session }: DashboardProps) {
 
             if (retryError) throw retryError;
             setUserProfile(existingProfile);
-            // Check if user needs tutorial (new user with no notes)
-            if (existingProfile.total_notes === 0) {
-              setShowTutorial(true);
-            }
+            if (existingProfile.total_notes === 0) setShowTutorial(true);
           } else {
             throw createError;
           }
@@ -102,7 +109,6 @@ export default function Dashboard({ session }: DashboardProps) {
   const loadTodayArticle = async () => {
     try {
       const today = getAppToday();
-
       const { data, error } = await supabase
         .from('articles')
         .select('*')
@@ -113,7 +119,6 @@ export default function Dashboard({ session }: DashboardProps) {
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
-
       setTodayArticle(data);
       setLoading(false);
     } catch (error) {
@@ -125,13 +130,11 @@ export default function Dashboard({ session }: DashboardProps) {
 
   useEffect(() => {
     void applySavedReminderSchedule();
-
     const handleAppActive = () => {
       loadTodayArticle();
       loadUserProfile();
     };
     window.addEventListener('app-became-active', handleAppActive);
-
     return () => {
       stopWebReminderSchedule();
       window.removeEventListener('app-became-active', handleAppActive);
@@ -140,94 +143,121 @@ export default function Dashboard({ session }: DashboardProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-pulse text-emerald-600">Loading today's story...</div>
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="animate-pulse text-sage-600 text-sm">Loading...</div>
       </div>
     );
   }
 
+  const headerVariant = currentTab === 'home' ? 'home' : 'title';
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header
+    <div className="min-h-screen bg-cream">
+      <AppHeader
+        variant={headerVariant}
         userProfile={userProfile}
-        currentView={currentView}
-        onViewChange={setCurrentView}
-        onSignOut={() => supabase.auth.signOut()}
-        onNotificationSettings={() => setShowNotificationSettings(true)}
-        onAdminPanel={() => setShowAdminPanel(true)}
-        onWriterPanel={() => setShowWriterPanel(true)}
-        onArticleReview={() => setShowArticleReview(true)}
-        onProfileSettings={() => setShowProfileSettings(true)}
+        onProfilePress={() => setCurrentTab('profile')}
+        onNotificationsPress={() => setShowNotificationSettings(true)}
       />
-      
-      <main className="pt-20 sm:pt-24 pb-24 lg:pb-8" id="main-content">
-        {currentView === 'article' && (
-          <div id="article-content">
-            <ArticleView 
-              article={todayArticle} 
-              userProfile={userProfile}
-              onProfileUpdate={setUserProfile}
-            />
-          </div>
+
+      <main className="pb-24">
+        {currentTab === 'home' && (
+          <HomeView
+            article={todayArticle}
+            userProfile={userProfile}
+            onProfileUpdate={setUserProfile}
+            onOpenNotes={() => setCurrentTab('notes')}
+          />
         )}
-        {currentView === 'notebook' && (
-          <div id="notebook-content">
-            <NotebookView userProfile={userProfile} />
-          </div>
+
+        {currentTab === 'community' && (
+          <NotebookView
+            userProfile={userProfile}
+            onWriteNote={() => setCurrentTab('home')}
+          />
         )}
-        {currentView === 'archive' && (
-          <div id="archive-content">
+
+        {currentTab === 'notes' && (
+          <div className="max-w-lg mx-auto px-4 pb-6">
             {selectedArchiveArticle ? (
               <div>
                 <button
+                  type="button"
                   onClick={() => setSelectedArchiveArticle(null)}
-                  className="mb-4 text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-2"
+                  className="mb-4 flex items-center gap-1 text-sage-600 hover:text-forest font-semibold text-sm active:opacity-70"
                 >
-                  ← Back to Archive
+                  ← Back to archive
                 </button>
-                <ArticleView
-                  article={selectedArchiveArticle}
-                  userProfile={userProfile}
-                  onProfileUpdate={setUserProfile}
-                />
+                <div className="bg-white rounded-4xl shadow-card overflow-hidden">
+                  <ArticleView
+                    article={selectedArchiveArticle}
+                    userProfile={userProfile}
+                    onProfileUpdate={setUserProfile}
+                  />
+                </div>
               </div>
             ) : (
-              <ArchiveView onArticleSelect={setSelectedArchiveArticle} />
+              <>
+                <h1 className="font-serif text-[1.75rem] font-medium tracking-tight text-forest mb-2">Archive</h1>
+                <ArchiveView onArticleSelect={setSelectedArchiveArticle} />
+              </>
             )}
           </div>
         )}
-        {currentView === 'about' && (
-          <div id="about-content">
-            <AboutView />
-          </div>
-        )}
-        {currentView === 'goals' && (
-          <div id="goals-content">
-            <GoalsView userProfile={userProfile} />
-          </div>
-        )}
-        {currentView === 'impact' && (
-          <div id="impact-content">
-            <ImpactDashboard userProfile={userProfile} />
-          </div>
-        )}
-        {currentView === 'leaderboard' && (
-          <div id="leaderboard-content">
-            <LeaderboardView userProfile={userProfile} />
-          </div>
+
+        {currentTab === 'impact' && <ImpactDashboard userProfile={userProfile} />}
+
+        {currentTab === 'profile' && (
+          <ProfileView
+            userProfile={userProfile}
+            isAdmin={isAdmin}
+            isWriter={isWriter}
+            onEditProfile={() => setShowProfileSettings(true)}
+            onNotifications={() => setShowNotificationSettings(true)}
+            onGoals={() => setOverlay('goals')}
+            onLeaderboard={() => setOverlay('leaderboard')}
+            onAdminPanel={() => setShowAdminPanel(true)}
+            onWriterPanel={() => setShowWriterPanel(true)}
+            onArticleReview={() => setShowArticleReview(true)}
+            onSignOut={() => supabase.auth.signOut()}
+          />
         )}
       </main>
-      
-      {/* Tutorial */}
+
+      <BottomNav current={currentTab} onChange={setCurrentTab} />
+
+      {overlay === 'goals' && (
+        <div className="fixed inset-0 z-50 bg-cream overflow-y-auto pb-8">
+          <div className="sticky top-0 bg-cream/95 backdrop-blur px-4 py-3 flex items-center gap-3 border-b border-sage-100">
+            <button type="button" onClick={() => setOverlay(null)} className="text-sage-600 font-medium text-sm">
+              ← Back
+            </button>
+            <h2 className="font-bold text-forest">My Goals</h2>
+          </div>
+          <GoalsView userProfile={userProfile} />
+        </div>
+      )}
+
+      {overlay === 'leaderboard' && (
+        <div className="fixed inset-0 z-50 bg-cream overflow-y-auto pb-8">
+          <div className="sticky top-0 bg-cream/95 backdrop-blur px-4 py-3 flex items-center gap-3 border-b border-sage-100">
+            <button type="button" onClick={() => setOverlay(null)} className="text-sage-600 font-medium text-sm">
+              ← Back
+            </button>
+            <h2 className="font-bold text-forest">Leaderboard</h2>
+          </div>
+          <LeaderboardView userProfile={userProfile} />
+        </div>
+      )}
+
       {showTutorial && (
         <Tutorial
           onComplete={() => setShowTutorial(false)}
-          currentView={currentView}
-          onViewChange={setCurrentView}
+          currentView="article"
+          onViewChange={() => setCurrentTab('home')}
         />
       )}
-      
-      {/* Profile Settings */}
+
       {showProfileSettings && userProfile && (
         <ProfileSettings
           userProfile={userProfile}
@@ -243,14 +273,10 @@ export default function Dashboard({ session }: DashboardProps) {
         />
       )}
 
-      {/* Notification Settings */}
       {showNotificationSettings && (
-        <NotificationSettings
-          onClose={() => setShowNotificationSettings(false)}
-        />
+        <NotificationSettings onClose={() => setShowNotificationSettings(false)} />
       )}
-      
-      {/* Admin Panel */}
+
       {showAdminPanel && (
         <AdminPanel
           onClose={() => {
@@ -258,19 +284,14 @@ export default function Dashboard({ session }: DashboardProps) {
             loadTodayArticle();
           }}
           userId={session.user.id}
-          isAdmin={userProfile?.role === 'admin'}
+          isAdmin={isAdmin}
         />
       )}
 
-      {/* Writer Panel */}
       {showWriterPanel && (
-        <WriterPanel
-          onClose={() => setShowWriterPanel(false)}
-          userId={session.user.id}
-        />
+        <WriterPanel onClose={() => setShowWriterPanel(false)} userId={session.user.id} />
       )}
 
-      {/* Article Review (Admin Only) */}
       {showArticleReview && (
         <ArticleReview
           onClose={() => {

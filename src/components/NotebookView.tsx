@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Users, Heart, Calendar, X, Share2 } from 'lucide-react';
+import { BookOpen, Users, Heart, Calendar, X, Share2, Leaf, Footprints, UtensilsCrossed, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
@@ -9,10 +9,11 @@ import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface NotebookViewProps {
   userProfile: UserProfile | null;
+  onWriteNote?: () => void;
 }
 
 interface NoteWithReactions extends UserNote {
-  user_profiles: { display_name: string | null; id: string };
+  user_profiles: { display_name: string | null; email: string | null; id: string };
   articles: { title: string; published_date: string };
   reaction_count: number;
   user_has_reacted: boolean;
@@ -23,7 +24,21 @@ interface PopupNote {
   position: { x: number; y: number };
 }
 
-export default function NotebookView({ userProfile }: NotebookViewProps) {
+const TRENDING = [
+  { icon: Footprints, label: 'Walk to Work' },
+  { icon: UtensilsCrossed, label: 'Plant-based Meal' },
+  { icon: Leaf, label: 'Local Produce' },
+];
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(diff / 3_600_000);
+  if (hours < 1) return 'Just now';
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export default function NotebookView({ userProfile, onWriteNote }: NotebookViewProps) {
   const [notes, setNotes] = useState<NoteWithReactions[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
@@ -39,7 +54,7 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
         .from('user_notes')
         .select(`
           *,
-          user_profiles!inner(id, display_name),
+          user_profiles!inner(id, display_name, email),
           articles!inner(title, published_date)
         `)
         .order('created_at', { ascending: false })
@@ -196,105 +211,108 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 text-center">
-        <div className="animate-pulse text-emerald-600">Loading community notebook...</div>
+      <div className="max-w-lg mx-auto px-4 py-12 text-center">
+        <div className="animate-pulse text-sage-600 text-sm">Loading community...</div>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">Community Notebook</h1>
-        <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-          See how others are turning climate awareness into daily action
-        </p>
+  const co2Estimate = (notes.length * 1.2).toFixed(0);
 
-        {/* Filter Tabs */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          <button
-            onClick={() => setFilter('all')}
-            className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
-              filter === 'all'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>All Notes</span>
-          </button>
-          <button
-            onClick={() => setFilter('mine')}
-            className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
-              filter === 'mine'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>My Notes</span>
-          </button>
+  return (
+    <div className="max-w-lg mx-auto px-4 pb-24 relative">
+      {/* Hero card */}
+      <div className="bg-white rounded-4xl shadow-soft p-6 mb-5">
+        <h1 className="text-2xl font-bold text-forest mb-3">Community Notebook</h1>
+        <div className="inline-flex items-center gap-2 bg-sage-100 text-sage-700 px-3 py-1.5 rounded-full text-xs font-semibold">
+          <Leaf className="w-3.5 h-3.5" />
+          <span>{co2Estimate}kg CO₂ saved today</span>
         </div>
       </div>
 
-      {/* Cute Notebook */}
-      {notes.length === 0 ? (
-        <div className="text-center py-12">
-          <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {filter === 'mine' ? 'No notes yet' : 'No community notes yet'}
-          </h3>
-          <p className="text-gray-600">
-            {filter === 'mine'
-              ? 'Read today\'s article and write your first action note!'
-              : 'Be the first to share your environmental action!'}
-          </p>
+      {/* Filter */}
+      <div className="flex gap-2 mb-5">
+        <button
+          type="button"
+          onClick={() => setFilter('all')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+            filter === 'all' ? 'bg-forest text-white' : 'bg-white text-gray-600 shadow-card'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          All
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter('mine')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+            filter === 'mine' ? 'bg-forest text-white' : 'bg-white text-gray-600 shadow-card'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          Mine
+        </button>
+      </div>
+
+      {/* Trending */}
+      <div className="mb-5">
+        <h2 className="text-base font-bold text-earth mb-3">Trending Actions</h2>
+        <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+          {TRENDING.map(({ icon: Icon, label }) => (
+            <div
+              key={label}
+              className="shrink-0 w-28 bg-white rounded-3xl shadow-card p-4 flex flex-col items-center gap-2"
+            >
+              <div className="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
+                <Icon className="w-5 h-5 text-sage-600" />
+              </div>
+              <span className="text-xs font-semibold text-forest text-center leading-tight">{label}</span>
+            </div>
+          ))}
         </div>
-      ) : (
-        <div className="relative">
-          {/* Notebook Background */}
-          <div
-            className="bg-gradient-to-br from-pink-50 via-white to-blue-50 border-4 border-white rounded-3xl p-12 min-h-96 relative overflow-hidden shadow-xl"
-          >
-            {/* Decorative corner stickers */}
-            <div className="absolute top-2 left-2 w-8 h-8 bg-yellow-200 rounded-full opacity-40"></div>
-            <div className="absolute top-2 right-2 w-6 h-6 bg-pink-200 rounded-full opacity-40"></div>
-            <div className="absolute bottom-2 left-2 w-6 h-6 bg-blue-200 rounded-full opacity-40"></div>
-            <div className="absolute bottom-2 right-2 w-8 h-8 bg-green-200 rounded-full opacity-40"></div>
+      </div>
 
-            {/* Title with cute styling */}
-            <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent mb-1">
-                🌸 Climate Actions 🌸
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-500">Click on any circle to see what others are doing!</p>
-            </div>
-
-            {/* User circles in grid layout */}
-            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3 sm:gap-4 justify-items-center items-center py-6 sm:py-8 px-2 sm:px-4">
-              {notes.map((note) => {
-                return (
-                  <button
-                    key={note.id}
-                    onClick={(e) => handleCircleClick(note, e)}
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${getCircleColor(colorSeedForProfile(note.user_profiles, note.user_id))}
-                      hover:scale-125 transition-all duration-300 shadow-lg hover:shadow-2xl
-                      border-3 border-white flex items-center justify-center text-white font-bold text-sm sm:text-base
-                      hover:rotate-12 transform`}
-                  >
-                    {publicAuthorInitial(note.user_profiles)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Cute footer message */}
-            <div className="text-center mt-6 text-sm text-gray-500">
-              ✨ {notes.length} {notes.length === 1 ? 'person is' : 'people are'} making a difference! ✨
-            </div>
+      {/* Feed */}
+      <div>
+        <h2 className="text-base font-bold text-earth mb-3">Community Feed</h2>
+        {notes.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow-card p-8 text-center">
+            <p className="text-gray-500 text-sm">No notes yet. Be the first to share!</p>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            {notes.map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                onClick={(e) => handleCircleClick(note, e)}
+                className="w-full bg-white rounded-3xl shadow-card p-4 text-left hover:shadow-soft transition-shadow"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${getCircleColor(colorSeedForProfile(note.user_profiles, note.user_id))}`}>
+                    {publicAuthorInitial(note.user_profiles)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-forest text-sm">{publicAuthorName(note.user_profiles)}</p>
+                    <p className="text-xs text-gray-400">{timeAgo(note.created_at)}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{note.content}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {onWriteNote && (
+        <button
+          type="button"
+          onClick={onWriteNote}
+          className="fixed bottom-20 right-4 w-14 h-14 bg-forest rounded-full shadow-soft flex items-center justify-center text-white z-30 hover:bg-forest-light transition-colors"
+          aria-label="Write a note"
+        >
+          <Pencil className="w-6 h-6" />
+        </button>
       )}
 
       {/* Note Card Generator Modal */}

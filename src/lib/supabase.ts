@@ -13,7 +13,9 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      detectSessionInUrl: true,
+      // OAuth callback is handled explicitly in oauthCallback.ts to avoid
+      // double exchange with detectSessionInUrl (which causes false failures).
+      detectSessionInUrl: false,
       flowType: 'pkce',
       persistSession: true,
     },

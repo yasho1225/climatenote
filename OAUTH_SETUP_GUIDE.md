@@ -89,7 +89,7 @@ This guide will help you set up Google and Apple social authentication for your 
 5. Select **App** → Click "Continue"
 6. Fill in:
    - **Description**: `The Climate Note`
-   - **Bundle ID**: `com.theclimaatenote.app` (or your existing bundle ID)
+   - **Bundle ID**: `com.theclimatenote.app` (must match `ios/App/App/Info.plist`)
    - **Capabilities**: Check "Sign in with Apple"
 7. Click "Continue" → "Register"
 
@@ -168,11 +168,12 @@ VITE_APP_URL=https://yourdomain.com
 4. Both should redirect properly and create user accounts
 
 ### For iOS App (Capacitor):
-1. Additional step needed in Xcode:
-2. Open iOS project in Xcode
-3. Select your target → **Signing & Capabilities**
-4. Click **+ Capability** → Add "Sign in with Apple"
-5. Build and test on device
+1. **Supabase redirect URL** (required for in-app Google OAuth):
+   - Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**
+   - Add: `com.theclimatenote.app://auth/callback`
+2. OAuth opens in an **in-app browser sheet** (not external Safari) and returns via that URL scheme.
+3. In Xcode: **Signing & Capabilities** → add **Sign in with Apple** (native Apple sign-in — configure in Part 2).
+4. Build and test on a **physical device** (simulator OAuth can behave differently).
 
 ---
 

@@ -1,21 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, StickyNote, CreditCard as Edit3, Send, CheckCircle, Share2, Sparkles, RefreshCw, PenLine } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, Clock, Send, CheckCircle, Share2, Sparkles, RefreshCw, PenLine, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Article, UserProfile, UserNote } from '../types';
+import { Article, UserProfile, UserNote, ArticleAiInsights } from '../types';
 import { showToast } from './ui/Toast';
 import NoteCardGenerator from './NoteCardGenerator';
+import { ArticleSummaryCard, ArticleFigureSection } from './ArticleInsightsPanel';
 import { sanitizeArticleHtml } from '../lib/htmlSanitizer';
 import { useRequestGuard } from '../lib/useRequestGuard';
+import { refreshUserProfileStats } from '../lib/profileStats';
+import {
+  fetchArticleInsights,
+  getInstantSummaryBullets,
+  hasCachedAiInsights,
+  hasSupabaseConfig,
+} from '../lib/articleInsights';
 
 interface ArticleViewProps {
   article: Article | null;
   userProfile: UserProfile | null;
   onProfileUpdate: (profile: UserProfile) => void;
+  compact?: boolean;
 }
 
 type NoteStep = 'prompt' | 'loading' | 'selecting' | 'submitting';
 
-export default function ArticleView({ article, userProfile, onProfileUpdate }: ArticleViewProps) {
+export default function ArticleView({ article, userProfile, onProfileUpdate, compact = false }: ArticleViewProps) {
   const [noteStep, setNoteStep] = useState<NoteStep>('prompt');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
@@ -24,7 +33,28 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
   const [hasNoteToday, setHasNoteToday] = useState(false);
   const [savedNote, setSavedNote] = useState<UserNote | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [insights, setInsights] = useState<ArticleAiInsights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [insightsFromDemo, setInsightsFromDemo] = useState(false);
+  const [regeneratingInsights, setRegeneratingInsights] = useState(false);
+  const [showFullArticle, setShowFullArticle] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const { nextGeneration, isCurrent } = useRequestGuard();
+
+  const summaryBullets = useMemo(
+    () => (article ? getInstantSummaryBullets(article, insights) : []),
+    [article, insights],
+  );
+
+  const canEnhanceWithAi = Boolean(
+    article &&
+      hasSupabaseConfig() &&
+      !hasCachedAiInsights(article) &&
+      !insights?.choices?.length,
+  );
+
+  const showAiEnhanceOption = Boolean(article && hasSupabaseConfig());
 
   const resetNoteState = useCallback(() => {
     setNoteStep('prompt');
@@ -35,6 +65,12 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
     setHasNoteToday(false);
     setSavedNote(null);
     setShowShareCard(false);
+    setInsights(null);
+    setInsightsLoading(false);
+    setInsightsError(null);
+    setInsightsFromDemo(false);
+    setShowFullArticle(false);
+    setShowStats(false);
   }, []);
 
   useEffect(() => {
@@ -42,7 +78,43 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
     if (article && userProfile) {
       void checkTodayNote();
     }
+    if (article?.ai_insights) {
+      setInsights(article.ai_insights);
+    }
   }, [article?.id, userProfile?.id]);
+
+  const loadInsights = async (forceRegenerate = false): Promise<ArticleAiInsights | null> => {
+    if (!article) return null;
+    const generation = nextGeneration();
+    if (forceRegenerate) {
+      setRegeneratingInsights(true);
+    } else {
+      setInsightsLoading(true);
+    }
+    setInsightsError(null);
+
+    try {
+      const result = await fetchArticleInsights(article, { forceRegenerate });
+      if (!isCurrent(generation)) return null;
+      setInsights(result.insights);
+      setInsightsFromDemo(result.fromDemo);
+      return result.insights;
+    } catch (err) {
+      if (!isCurrent(generation)) return null;
+      const message = err instanceof Error ? err.message : 'Failed to load insights';
+      setInsightsError(message);
+      return null;
+    } finally {
+      if (isCurrent(generation)) {
+        setInsightsLoading(false);
+        setRegeneratingInsights(false);
+      }
+    }
+  };
+
+  const handleEnhanceWithAi = () => {
+    void loadInsights();
+  };
 
   const checkTodayNote = async () => {
     if (!article || !userProfile) return;
@@ -64,20 +136,36 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
     }
   };
 
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = async (forceRefresh = false) => {
     if (!article) return;
     setNoteStep('loading');
     setSelectedSuggestion(null);
     setShowCustom(false);
     setCustomText('');
 
+    // Use cached AI choices when available; otherwise fetch on demand
+    if (!forceRefresh) {
+      let cachedChoices = insights?.choices ?? article.ai_insights?.choices;
+      if (cachedChoices?.length !== 3) {
+        const loaded = await loadInsights();
+        cachedChoices = loaded?.choices ?? insights?.choices ?? article.ai_insights?.choices;
+      }
+      if (cachedChoices?.length === 3) {
+        setSuggestions(cachedChoices);
+        setNoteStep('selecting');
+        return;
+      }
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('generate-action-suggestions', {
         body: {
+          article_id: article.id,
           article_title: article.title,
           article_subtitle: article.subtitle || '',
           key_takeaways: article.key_takeaways || [],
           article_content: article.content || '',
+          force_regenerate: forceRefresh,
         },
       });
 
@@ -85,12 +173,18 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
       if (data?.suggestions && Array.isArray(data.suggestions)) {
         setSuggestions(data.suggestions);
         setNoteStep('selecting');
-      } else {
-        throw new Error('No suggestions returned');
+        return;
       }
+      throw new Error('No suggestions returned');
     } catch (err) {
       console.error('Failed to fetch suggestions:', err);
-      // Fallback: use key takeaways to generate specific suggestions
+      // Fallback: use insights or key takeaways
+      const fallbackChoices = insights?.choices ?? article.ai_insights?.choices;
+      if (fallbackChoices?.length === 3) {
+        setSuggestions(fallbackChoices);
+        setNoteStep('selecting');
+        return;
+      }
       const takeaways = article.key_takeaways || [];
       const fallback = takeaways.length >= 2
         ? [
@@ -148,13 +242,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
         }).catch(err => console.error('Impact classification failed (non-critical):', err));
       }
 
-      const { data: updatedProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userProfile.id)
-        .single();
-
-      if (profileError) throw profileError;
+      const updatedProfile = await refreshUserProfileStats(userProfile.id);
 
       onProfileUpdate(updatedProfile);
       setSavedNote(noteData);
@@ -182,98 +270,16 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
   const canSubmit = showCustom ? customText.trim().length > 0 : selectedSuggestion !== null;
   const safeArticleContent = sanitizeArticleHtml(article.content || '');
 
-  return (
-    <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
-      {/* Article Header */}
-      <div className="mb-6 sm:mb-8">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
-          <div className="flex items-center space-x-1">
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">{new Date(article.published_date).toLocaleDateString('en-US', {
-              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            })}</span>
-            <span className="sm:hidden">{new Date(article.published_date).toLocaleDateString('en-US', {
-              month: 'short', day: 'numeric', year: 'numeric'
-            })}</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>{article.reading_time} min</span>
-          </div>
-          {article.category && (
-            <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
-              {article.category}
-            </span>
-          )}
-        </div>
+  const shareModal = showShareCard && savedNote && userProfile ? (
+    <NoteCardGenerator
+      note={{ ...savedNote, article_title: article.title }}
+      userProfile={userProfile}
+      onClose={() => setShowShareCard(false)}
+    />
+  ) : null;
 
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight mb-3 sm:mb-4">
-          {article.title}
-        </h1>
-        {article.subtitle && (
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed">
-            {article.subtitle}
-          </p>
-        )}
-      </div>
-
-      {/* Article Content */}
-      <div className="prose prose-sm sm:prose-base lg:prose-lg max-w-none mb-8 sm:mb-12 article-content">
-        <div
-          dangerouslySetInnerHTML={{ __html: safeArticleContent }}
-          className="text-gray-800 leading-relaxed [&_img]:w-full [&_img]:rounded-lg [&_img]:my-4 sm:[&_img]:my-6 [&_img]:shadow-md"
-        />
-      </div>
-
-      {/* Key Takeaways */}
-      {article.key_takeaways && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex items-center space-x-2 mb-3">
-            <StickyNote className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
-            <h3 className="font-semibold text-sm sm:text-base text-yellow-800">Key Takeaways</h3>
-          </div>
-          <ul className="space-y-2">
-            {article.key_takeaways.map((takeaway, index) => (
-              <li key={index} className="flex items-start space-x-2 text-sm sm:text-base text-yellow-900">
-                <span className="text-yellow-600 mt-1">•</span>
-                <span>{takeaway}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Key Statistics */}
-      {article.key_statistics && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex items-center space-x-2 mb-4">
-            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-            <h3 className="font-semibold text-sm sm:text-base text-blue-800">By the Numbers</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {article.key_statistics.map((stat, index) => (
-              <div key={index} className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm">
-                <p className="text-sm sm:text-base text-blue-900 leading-relaxed font-medium">
-                  {stat}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Note Card Generator Modal */}
-      {showShareCard && savedNote && userProfile && (
-        <NoteCardGenerator
-          note={{ ...savedNote, article_title: article.title }}
-          userProfile={userProfile}
-          onClose={() => setShowShareCard(false)}
-        />
-      )}
-
-      {/* Action Note Section */}
-      <div className="bg-white border-2 border-emerald-200 rounded-xl p-4 sm:p-6" id="action-note-section">
-
+  const actionSection = (
+    <div className={compact ? '' : 'bg-white border-2 border-sage-200 rounded-3xl p-4 sm:p-6'} id="action-note-section">
         {/* ── Already done ── */}
         {hasNoteToday ? (
           <div className="text-center space-y-3 sm:space-y-4">
@@ -302,13 +308,22 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
             <p className="text-sm sm:text-base text-gray-600">
               Pick an action inspired by today's article — or write your own.
             </p>
-            <button
-              onClick={fetchSuggestions}
-              className="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-colors text-sm sm:text-base"
-            >
-              <Edit3 className="w-4 h-4" />
-              <span>Write My Action Note</span>
-            </button>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={fetchSuggestions}
+                className="inline-flex items-center gap-2 bg-forest hover:bg-forest-light text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm"
+              >
+                <Check className="w-4 h-4" />
+                <span>Mark as Done</span>
+              </button>
+              <button
+                type="button"
+                className="w-12 h-12 rounded-2xl border border-sage-200 bg-white flex items-center justify-center text-gray-400"
+                aria-label="More options"
+              >
+                <span className="text-lg leading-none">···</span>
+              </button>
+            </div>
           </div>
 
         /* ── Loading suggestions ── */
@@ -335,7 +350,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
             <div className="flex items-center justify-between">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900">Choose your action</h3>
               <button
-                onClick={fetchSuggestions}
+                onClick={() => void fetchSuggestions(true)}
                 className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600 transition-colors"
                 title="Regenerate suggestions"
               >
@@ -343,6 +358,9 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
                 Regenerate
               </button>
             </div>
+            <p className="text-xs text-gray-500 -mt-2">
+              AI-generated actions tailored to this article — pick one or write your own.
+            </p>
 
             {/* 3 AI suggestions */}
             <div className="space-y-2">
@@ -442,6 +460,119 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
           </div>
         )}
       </div>
+  );
+
+  if (compact) {
+    return (
+      <div className="px-1">
+        {shareModal}
+        {actionSection}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
+      {shareModal}
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
+          <div className="flex items-center space-x-1">
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>{new Date(article.published_date).toLocaleDateString('en-US', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            })}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>{article.reading_time} min</span>
+          </div>
+          {article.category && (
+            <span className="bg-sage-100 text-sage-700 px-2 py-1 rounded-full text-xs font-medium">
+              {article.category}
+            </span>
+          )}
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-forest leading-tight mb-3">
+          {article.title}
+        </h1>
+        {article.subtitle && summaryBullets.length === 0 && (
+          <p className="text-base sm:text-lg text-gray-600 leading-relaxed">{article.subtitle}</p>
+        )}
+      </div>
+
+      <div className="space-y-4 mb-6">
+        <ArticleSummaryCard
+          bullets={summaryBullets}
+          loading={insightsLoading}
+          fromDemo={insightsFromDemo}
+          showEnhanceButton={showAiEnhanceOption && (summaryBullets.length === 0 || canEnhanceWithAi)}
+          onEnhance={handleEnhanceWithAi}
+          onRegenerate={insights?.summary?.length ? () => void loadInsights(true) : undefined}
+          regenerating={regeneratingInsights}
+        />
+
+        {insightsError && !insights && (
+          <p className="text-xs text-amber-700 px-1">{insightsError}</p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setShowFullArticle((v) => !v)}
+          className="w-full flex items-center justify-between rounded-2xl border border-sage-200 bg-white px-4 py-3 text-sm font-semibold text-forest hover:bg-sage-50/60 transition-colors"
+        >
+          <span>{showFullArticle ? 'Hide full article' : 'Read full article'}</span>
+          {showFullArticle ? (
+            <ChevronUp className="w-4 h-4 text-sage-500" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-sage-500" />
+          )}
+        </button>
+
+        {showFullArticle && (
+          <div className="prose prose-sm sm:prose-base max-w-none article-content">
+            <div
+              dangerouslySetInnerHTML={{ __html: safeArticleContent }}
+              className="text-gray-800 leading-relaxed [&_img]:w-full [&_img]:rounded-lg [&_img]:my-4 [&_img]:shadow-md"
+            />
+          </div>
+        )}
+
+        {insights?.figure && (
+          <ArticleFigureSection
+            figure={insights.figure}
+            expanded={showStats}
+            onToggle={() => setShowStats((v) => !v)}
+          />
+        )}
+
+        {!insights?.figure && article.key_statistics && article.key_statistics.length > 0 && (
+          <div className="border border-sage-100 rounded-3xl overflow-hidden bg-white shadow-card">
+            <button
+              type="button"
+              onClick={() => setShowStats((v) => !v)}
+              className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 text-left hover:bg-sage-50/50 transition-colors"
+            >
+              <span className="font-semibold text-sm text-forest">By the numbers</span>
+              {showStats ? (
+                <ChevronUp className="w-4 h-4 text-sage-500" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-sage-500" />
+              )}
+            </button>
+            {showStats && (
+              <div className="px-4 sm:px-5 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-sage-100 pt-4">
+                {article.key_statistics.map((stat, index) => (
+                  <div key={index} className="bg-cream rounded-2xl p-4">
+                    <p className="text-sm text-forest font-medium">{stat}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {actionSection}
     </div>
   );
 }

@@ -2,8 +2,9 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { App } from '@capacitor/app';
-import { Browser } from '@capacitor/browser';
 import { supabase } from './lib/supabase';
+import { completeOAuthSignInFromUrl } from './lib/oauthCallback';
+import { closeInAppOAuthBrowser } from './lib/nativeOAuth';
 
 let notificationListenersRegistered = false;
 let appListenersRegistered = false;
@@ -36,7 +37,7 @@ export class CapacitorNotifications {
     }
     notificationListenersRegistered = true;
 
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    PushNotifications.addListener('pushNotificationReceived', () => {
       console.log('Push notification received');
     });
 
@@ -125,33 +126,20 @@ async function handleDeepLink(urlString: string) {
   const isOAuthCallback =
     url.searchParams.has('code') ||
     url.hash.includes('access_token') ||
-    url.pathname.includes('auth/callback');
+    url.pathname.includes('auth/callback') ||
+    url.host === 'auth' ||
+    urlString.includes('auth/callback');
 
   const isPasswordReset =
     urlString.includes('type=recovery') || urlString.includes('reset-password');
 
   if (isOAuthCallback) {
-    try {
-      await Browser.close();
-    } catch {
-      // Browser may already be closed
-    }
+    await closeInAppOAuthBrowser();
 
-    if (url.searchParams.has('code')) {
-      const code = url.searchParams.get('code')!;
-      await supabase.auth.exchangeCodeForSession(code);
-    } else if (url.hash) {
-      const hashParams = new URLSearchParams(url.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-
-      if (accessToken && refreshToken) {
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-      }
-    }
+    const result = await completeOAuthSignInFromUrl(urlString);
+    window.dispatchEvent(
+      new CustomEvent('native-auth-complete', { detail: result }),
+    );
   }
 
   if (isPasswordReset) {

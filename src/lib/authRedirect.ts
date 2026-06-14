@@ -7,6 +7,10 @@ export function getAuthRedirectUrl(path = '/auth/callback') {
     return `${NATIVE_AUTH_SCHEME}://${path.replace(/^\//, '')}`;
   }
 
-  const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+  // Prefer live origin so OAuth redirect matches the port Vite is actually using.
+  const appUrl =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : import.meta.env.VITE_APP_URL || '';
   return path === '/auth/callback' ? appUrl : `${appUrl}${path}`;
 }
