@@ -10,5 +10,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      // PKCE + detectSessionInUrl are the supabase-js v2 defaults; set them
+      // explicitly to document the web OAuth redirect contract — the web build
+      // exchanges the `?code=...` callback on load. The native iOS Apple flow
+      // uses signInWithIdToken and relies on none of this.
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  }
 );
