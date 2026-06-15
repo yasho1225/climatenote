@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, NotebookPen, ArrowRight, Lock } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
+import { signInWithAppleNative, isUserCancel } from '../lib/appleAuth';
 import { showToast } from './ui/Toast';
 
 // SVG Icons for social login
@@ -32,6 +33,33 @@ export default function LandingPage() {
   const handleSocialAuth = async (provider: 'google' | 'apple') => {
     setLoading(true);
     try {
+      // Native iOS: use the native Sign in with Apple sheet instead of the web
+      // OAuth redirect. The redirect flow can't return to the native app (no
+      // custom URL scheme / Universal Link is registered), so it would never
+      // complete. signInWithAppleNative authenticates Supabase directly.
+      if (
+        provider === 'apple' &&
+        Capacitor.isNativePlatform() &&
+        Capacitor.getPlatform() === 'ios'
+      ) {
+        try {
+          await signInWithAppleNative();
+          // On success Supabase sets the session; App.tsx's onAuthStateChange
+          // re-renders into the Dashboard, so we intentionally leave loading
+          // on until this component unmounts.
+        } catch (err) {
+          if (isUserCancel(err)) {
+            // User dismissed the Apple sheet — not an error.
+            setLoading(false);
+            return;
+          }
+          console.error('Apple native sign-in error:', err);
+          showToast('Failed to sign in with Apple. Please try again.', 'error');
+          setLoading(false);
+        }
+        return;
+      }
+
       if (Capacitor.isNativePlatform()) {
         // On native iOS/Android, use in-app browser (SFSafariViewController)
         // to comply with App Store guideline 4 (no external browser for auth)
