@@ -1,4 +1,4 @@
-import { FunctionsHttpError } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 
 /** Extract a user-facing message from a Supabase Edge Function invoke result. */
 export async function getEdgeFunctionErrorMessage(
@@ -16,11 +16,24 @@ export async function getEdgeFunctionErrorMessage(
       if (body && typeof body.error === 'string' && body.error.trim()) {
         return body.error;
       }
+      if (error.context.status === 401) {
+        return 'Sign in to use AI features.';
+      }
     } catch {
       // ignore JSON parse failures
     }
   }
 
-  if (error instanceof Error && error.message) return error.message;
+  if (error instanceof FunctionsFetchError) {
+    return 'Could not reach the AI service. Check your connection, sign in, and try again.';
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes('Failed to send a request to the Edge Function')) {
+      return 'Could not reach the AI service. Sign in, refresh the page, and try again.';
+    }
+    if (error.message) return error.message;
+  }
+
   return 'AI request failed. Please try again.';
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Flame } from 'lucide-react';
+import { Zap, Flame, Search } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { getAvatarColor, getDisplayName, getGreeting, getInitials } from '../../lib/userDisplay';
 
@@ -10,6 +10,8 @@ interface AppHeaderProps {
   userProfile: UserProfile | null;
   onProfilePress: () => void;
   onNotificationsPress: () => void;
+  onSearchPress?: () => void;
+  showSearch?: boolean;
 }
 
 export default function AppHeader({
@@ -17,10 +19,12 @@ export default function AppHeader({
   userProfile,
   onProfilePress,
   onNotificationsPress,
+  onSearchPress,
+  showSearch = true,
 }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-40 app-chrome px-4 pt-3 pb-3 safe-top border-b">
-      <div className="max-w-lg mx-auto flex items-center justify-between gap-3">
+    <header className="shrink-0 z-40 bg-sage-50/90 backdrop-blur-md px-4 pt-3 pb-3 safe-top border-b border-sage-200/50">
+      <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onProfilePress}
@@ -50,19 +54,31 @@ export default function AppHeader({
         </button>
 
         {variant === 'title' && (
-          <h1 className="text-base font-bold text-forest absolute left-1/2 -translate-x-1/2 pointer-events-none">
+          <h1 className="text-[15px] font-bold text-forest absolute left-1/2 -translate-x-1/2 pointer-events-none tracking-tight">
             The Climate Note
           </h1>
         )}
 
-        <button
-          type="button"
-          onClick={onNotificationsPress}
-          className="w-10 h-10 rounded-full bg-sage-100/80 flex items-center justify-center text-sage-600 hover:bg-sage-200 transition-colors shrink-0 ml-auto shadow-card"
-          aria-label="Notifications"
-        >
-          <Zap className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {showSearch && onSearchPress && (
+            <button
+              type="button"
+              onClick={onSearchPress}
+              className="touch-target w-10 h-10 rounded-full bg-sage-100/80 flex items-center justify-center text-sage-600 active:bg-sage-200 transition-colors shadow-card"
+              aria-label="Search stories"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onNotificationsPress}
+            className="touch-target w-10 h-10 rounded-full bg-sage-100/80 flex items-center justify-center text-sage-600 active:bg-sage-200 transition-colors shadow-card"
+            aria-label="Notifications"
+          >
+            <Zap className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     </header>
   );

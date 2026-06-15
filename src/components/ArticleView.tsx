@@ -18,6 +18,8 @@ import {
   resolveDisplayFigure,
 } from '../lib/articleInsights';
 
+const NOTE_MAX_LENGTH = 2000;
+
 interface ArticleViewProps {
   article: Article | null;
   userProfile: UserProfile | null;
@@ -64,7 +66,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
       !insights?.choices?.length,
   );
 
-  const showAiEnhanceOption = Boolean(article && hasSupabaseConfig());
+  const showAiEnhanceOption = Boolean(article && hasSupabaseConfig() && userProfile);
 
   const resetNoteState = useCallback(() => {
     setNoteStep('prompt');
@@ -140,6 +142,10 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
   };
 
   const handleEnhanceWithAi = () => {
+    if (!userProfile) {
+      showToast('Sign in to generate AI summaries.', 'error');
+      return;
+    }
     void loadInsights();
   };
 
@@ -240,9 +246,22 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
     return selectedSuggestion || '';
   };
 
+  const handleWriteOwn = () => {
+    setNoteStep('selecting');
+    setSuggestions([]);
+    setSelectedSuggestion(null);
+    setShowCustom(true);
+    setCustomText('');
+  };
+
   const handleSubmitNote = async () => {
     const finalNote = getFinalNote();
     if (!finalNote || !article || !userProfile) return;
+    if (finalNote.length > NOTE_MAX_LENGTH) {
+      showToast(`Notes must be ${NOTE_MAX_LENGTH} characters or fewer`, 'error');
+      setNoteStep('selecting');
+      return;
+    }
 
     setNoteStep('submitting');
     try {
@@ -312,7 +331,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
   ) : null;
 
   const actionSection = (
-    <div className={compact ? '' : 'bg-white border-2 border-sage-200 rounded-3xl p-4 sm:p-6'} id="action-note-section">
+    <div className={compact ? '' : 'bg-sage-50/80 border-2 border-sage-200 rounded-3xl p-4 sm:p-6'} id="action-note-section">
         {/* ── Already done ── */}
         {hasNoteToday ? (
           <div className="text-center space-y-3 sm:space-y-4">
@@ -343,6 +362,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
             </p>
             <div className="flex gap-2 justify-center">
               <button
+                type="button"
                 onClick={fetchSuggestions}
                 className="inline-flex items-center gap-2 bg-forest hover:bg-forest-light text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm"
               >
@@ -351,10 +371,12 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
               </button>
               <button
                 type="button"
-                className="w-12 h-12 rounded-2xl border border-sage-200 bg-white flex items-center justify-center text-gray-400"
-                aria-label="More options"
+                onClick={handleWriteOwn}
+                className="w-12 h-12 rounded-2xl border border-sage-200 bg-sage-50/90 flex items-center justify-center text-ink-muted hover:text-forest hover:border-sage-300 transition-colors"
+                aria-label="Write your own action"
+                title="Write your own"
               >
-                <span className="text-lg leading-none">···</span>
+                <PenLine className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -464,6 +486,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
                 autoFocus
                 value={customText}
                 onChange={(e) => setCustomText(e.target.value)}
+                maxLength={NOTE_MAX_LENGTH}
                 placeholder="I will… (describe your specific climate action)"
                 className="w-full h-28 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none text-sm"
               />
@@ -551,7 +574,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
         <button
           type="button"
           onClick={() => setShowFullArticle((v) => !v)}
-          className="w-full flex items-center justify-between rounded-2xl border border-sage-200 bg-white px-4 py-3 text-sm font-semibold text-forest hover:bg-sage-50/60 transition-colors"
+          className="w-full flex items-center justify-between rounded-2xl border border-sage-200 bg-sage-50/80 px-4 py-3 text-sm font-semibold text-forest hover:bg-sage-100/60 transition-colors"
         >
           <span>{showFullArticle ? 'Hide full article' : 'Read full article'}</span>
           {showFullArticle ? (

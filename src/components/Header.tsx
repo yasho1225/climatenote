@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NotebookPen, BookOpen, Archive, LogOut, Flame, Info, Bell, Plus, FileEdit, CheckSquare, Menu, X, Target, BarChart2, Trophy, UserCircle } from 'lucide-react';
+import { NotebookPen, BookOpen, Archive, LogOut, Flame, Info, Bell, Plus, FileEdit, CheckSquare, Menu, Target, BarChart2, Trophy, UserCircle } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface HeaderProps {

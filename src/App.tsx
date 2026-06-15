@@ -26,6 +26,8 @@ import { getSupabaseConfigError } from './lib/validateSupabaseConfig';
 
 import { scrollAppToTop } from './lib/scrollToTop';
 
+import { initializeNativeShell, hideNativeSplash } from './lib/nativeShell';
+
 import MobileAppFrame, { FrameBackground } from './components/layout/MobileAppFrame';
 
 
@@ -89,6 +91,8 @@ function App() {
     const initializeApp = async () => {
 
       try {
+
+        await initializeNativeShell();
 
         // Initialize Capacitor deep links before auth (cold-start URLs)
 
@@ -222,6 +226,8 @@ function App() {
 
           setLoading(false);
 
+          void hideNativeSplash();
+
         }
 
       }
@@ -286,7 +292,7 @@ function App() {
 
       <MobileAppFrame background="neutral">
 
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-1 min-h-0 items-center justify-center">
 
           <div className="text-center space-y-4">
 
@@ -314,11 +320,11 @@ function App() {
 
       <MobileAppFrame background="neutral">
 
-        <div className="min-h-screen">
+        <div className="flex flex-1 min-h-0 flex-col">
 
           {configError ? (
 
-            <div className="min-h-screen flex items-center justify-center p-6">
+            <div className="flex flex-1 min-h-0 items-center justify-center p-6">
 
               <div className="max-w-md card-surface p-6">
 
@@ -356,7 +362,7 @@ function App() {
 
       <MobileAppFrame background="neutral">
 
-        <div className="min-h-screen">
+        <div className="flex flex-1 min-h-0 flex-col">
 
           <PasswordReset />
 
@@ -380,7 +386,7 @@ function App() {
 
       <MobileAppFrame background="neutral">
 
-        <div className="min-h-screen">
+        <div className="flex flex-1 min-h-0 flex-col">
 
           <PrivacyPolicy />
 
@@ -404,7 +410,7 @@ function App() {
 
       <MobileAppFrame background="neutral">
 
-        <div className="min-h-screen">
+        <div className="flex flex-1 min-h-0 flex-col">
 
           <TermsOfService />
 
@@ -426,7 +432,7 @@ function App() {
 
     <MobileAppFrame background={mainFrameBackground}>
 
-      <div className="min-h-screen">
+      <div className="flex flex-1 min-h-0 flex-col">
 
         {!session ? <LandingPage /> : <Dashboard session={session} />}
 

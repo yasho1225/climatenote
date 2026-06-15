@@ -287,26 +287,19 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      {/* Page Header */}
-      <div className="text-center mb-8">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Trophy className="w-7 h-7 text-amber-500" />
-          <h1 className="text-2xl font-bold text-gray-900">Leaderboard</h1>
-        </div>
-        <p className="text-gray-500 text-sm">Celebrating climate action — every note counts</p>
-      </div>
+    <div className="app-screen space-y-5 !pb-8">
+      <p className="text-ink-muted text-sm text-center -mt-2">Celebrating climate action — every note counts</p>
 
       {/* Period Tab Switcher */}
-      <div className="flex bg-gray-100 rounded-xl p-1 mb-6 gap-1">
+      <div className="flex bg-sage-50/90 rounded-xl p-1 mb-2 gap-1 border border-sage-200/60">
         {(['daily', 'weekly', 'monthly'] as Period[]).map((p) => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
               period === p
-                ? 'bg-white text-emerald-700 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-forest text-white shadow-soft'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             {p.charAt(0).toUpperCase() + p.slice(1)}
@@ -320,12 +313,12 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-              <h2 className="font-semibold text-gray-800 text-sm">Featured Notes Today</h2>
+              <h2 className="section-title !mb-0">Featured Notes Today</h2>
             </div>
             {isAdmin && (
               <button
                 onClick={openFeatureModal}
-                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium border border-emerald-200 rounded-lg px-3 py-1.5 hover:bg-emerald-50 transition-colors"
+                className="text-xs text-forest font-semibold border border-sage-200 rounded-lg px-3 py-1.5 hover:bg-sage-50 transition-colors"
               >
                 + Feature Notes
               </button>
@@ -333,15 +326,15 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
           </div>
 
           {featuredNotes.length === 0 ? (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 text-center">
-              <Star className="w-8 h-8 text-amber-300 mx-auto mb-2" />
-              <p className="text-sm text-amber-700 font-medium">
+            <div className="app-feature-card text-center !p-5">
+              <Star className="w-8 h-8 text-terracotta/40 mx-auto mb-2" />
+              <p className="text-sm text-ink font-medium">
                 {isAdmin
                   ? 'No notes featured yet today.'
                   : "Today's featured notes will appear here!"}
               </p>
               {isAdmin && (
-                <p className="text-xs text-amber-600 mt-1">
+                <p className="text-xs text-ink-muted mt-1">
                   Click "+ Feature Notes" to highlight inspiring notes from today.
                 </p>
               )}
@@ -351,7 +344,7 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
               {featuredNotes.map((note) => (
                 <div
                   key={note.id}
-                  className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4"
+                  className="app-card p-4 border-l-4 border-l-terracotta"
                 >
                   <div className="flex items-start gap-3">
                     <Star className="w-4 h-4 text-amber-500 fill-amber-400 flex-shrink-0 mt-0.5" />
@@ -383,21 +376,21 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       {/* Rankings */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800 text-sm">{periodLabel[period]} Rankings</h2>
+          <h2 className="section-title !mb-0">{periodLabel[period]} Rankings</h2>
           {!loading && rankings.length > 0 && (
-            <span className="text-xs text-gray-400">{rankings.length} writer{rankings.length !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-ink-muted">{rankings.length} writer{rankings.length !== 1 ? 's' : ''}</span>
           )}
         </div>
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-pulse text-gray-400 text-sm">Loading rankings...</div>
+            <div className="animate-pulse text-ink-muted text-sm">Loading rankings...</div>
           </div>
         ) : rankings.length === 0 ? (
-          <div className="text-center py-14">
-            <Medal className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm font-medium">No notes written {emptyLabel[period]} yet</p>
-            <p className="text-gray-400 text-xs mt-1">Be the first to write your climate note!</p>
+          <div className="app-card text-center py-14 px-6">
+            <Medal className="w-12 h-12 text-sage-200 mx-auto mb-3" />
+            <p className="text-ink-muted text-sm font-medium">No notes written {emptyLabel[period]} yet</p>
+            <p className="text-ink-muted/70 text-xs mt-1">Be the first to write your climate note!</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -409,10 +402,10 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
                   key={entry.user_id}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
                     isMe
-                      ? 'bg-emerald-50 border-emerald-200'
+                      ? 'app-feature-card !p-3 border-forest/20'
                       : rank <= 3
-                      ? 'bg-amber-50 border-amber-100'
-                      : 'bg-white border-gray-100'
+                      ? 'bg-terracotta-light/50 border-terracotta/15'
+                      : 'app-card !p-3'
                   }`}
                 >
                   {/* Rank Badge */}

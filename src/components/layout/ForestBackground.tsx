@@ -49,6 +49,8 @@ export default function ForestBackground({
 }: ForestBackgroundProps) {
   const isFull = variant === 'full';
   const isApp = variant === 'app';
+  /** Landing-matched immersive forest (Get Started + authenticated app) */
+  const isImmersive = isFull || isApp;
 
   return (
     <div
@@ -66,31 +68,23 @@ export default function ForestBackground({
       <div className="forest-bg__glow forest-bg__glow--left" />
       <div className="forest-bg__glow forest-bg__glow--right" />
 
-      {/* App-only soft canopy wash & horizon */}
-      {isApp && (
-        <>
-          <div className="forest-bg__atmosphere" />
-          <div className="forest-bg__horizon" />
-        </>
-      )}
-
       {/* Organic foliage blobs */}
       <div className="forest-bg__blob forest-bg__blob--1" />
       <div className="forest-bg__blob forest-bg__blob--2" />
       <div className="forest-bg__blob forest-bg__blob--3" />
-      {isApp && <div className="forest-bg__blob forest-bg__blob--4" />}
+      {isImmersive && <div className="forest-bg__blob forest-bg__blob--4" />}
 
-      {/* Light rays — landing only */}
-      <div className={`forest-bg__rays ${isFull ? 'forest-bg__rays--active' : ''}`}>
+      {/* Light rays — landing + in-app */}
+      <div className={`forest-bg__rays ${isImmersive ? 'forest-bg__rays--active' : ''}`}>
         <div className="forest-bg__ray forest-bg__ray--1" />
         <div className="forest-bg__ray forest-bg__ray--2" />
         <div className="forest-bg__ray forest-bg__ray--3" />
       </div>
 
-      {/* Floating particles — landing only */}
-      {isFull && (
+      {/* Floating particles */}
+      {isImmersive && (
         <div className="forest-bg__particles">
-          {Array.from({ length: 12 }).map((_, i) => (
+          {Array.from({ length: isFull ? 12 : 10 }).map((_, i) => (
             <span
               key={i}
               className="forest-bg__particle"
@@ -104,34 +98,9 @@ export default function ForestBackground({
         </div>
       )}
 
-      {/* Subtle floating motes — calm life in the app shell */}
-      {isApp && (
-        <div className="forest-bg__particles forest-bg__particles--app">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <span
-              key={i}
-              className="forest-bg__particle forest-bg__particle--app"
-              style={{
-                left: `${10 + (i * 11) % 80}%`,
-                animationDelay: `${i * 1.2}s`,
-                animationDuration: `${10 + (i % 3) * 3}s`,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Soft light rays — app only, very subtle */}
-      {isApp && (
-        <div className="forest-bg__rays forest-bg__rays--app">
-          <div className="forest-bg__ray forest-bg__ray--1" />
-          <div className="forest-bg__ray forest-bg__ray--2" />
-        </div>
-      )}
-
-      {/* Tree silhouettes — static on app/subtle, swaying on landing */}
+      {/* Tree silhouettes — gentle sway on immersive views */}
       {React.cloneElement(TREE_SILHOUETTES, {
-        className: `forest-bg__trees ${isFull ? 'forest-bg__trees--sway' : ''}`,
+        className: `forest-bg__trees ${isImmersive ? 'forest-bg__trees--sway' : ''}`,
       })}
 
       {/* Subtle noise texture for depth */}

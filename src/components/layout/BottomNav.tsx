@@ -17,8 +17,8 @@ const tabs: { id: AppTab; label: string; icon: React.ElementType }[] = [
 
 export default function BottomNav({ current, onChange }: BottomNavProps) {
   return (
-    <nav className="fixed mobile-frame-fixed bottom-0 left-0 right-0 z-50 app-chrome border-t safe-bottom">
-      <div className="max-w-lg mx-auto flex items-stretch justify-around px-1 pt-2 pb-2">
+    <nav className="shrink-0 z-50 bg-sage-50/92 backdrop-blur-md border-t border-sage-200/60 safe-bottom">
+      <div className="flex items-stretch justify-around px-1 pt-2 pb-2">
         {tabs.map(({ id, label, icon: Icon }) => {
           const active = current === id;
           return (
@@ -26,16 +26,16 @@ export default function BottomNav({ current, onChange }: BottomNavProps) {
               key={id}
               type="button"
               onClick={() => onChange(id)}
-              className={`flex flex-col items-center justify-center flex-1 py-1.5 gap-0.5 transition-colors rounded-xl ${
-                active ? 'text-forest' : 'text-sage-400'
+              className={`touch-target flex flex-col items-center justify-center flex-1 min-h-[52px] py-1.5 gap-0.5 transition-colors rounded-xl active:opacity-70 ${
+                active ? 'text-forest' : 'text-ink-muted'
               }`}
             >
-              <Icon className={`w-6 h-6 ${active ? 'stroke-[2.5px] text-sage-600' : ''}`} />
-              <span className={`text-[10px] font-medium ${active ? 'font-semibold text-sage-600' : ''}`}>
+              <Icon className={`w-6 h-6 ${active ? 'stroke-[2.5px]' : 'stroke-[1.75px]'}`} />
+              <span className={`text-[10px] font-medium ${active ? 'font-semibold' : ''}`}>
                 {label}
               </span>
               {active && (
-                <span className="w-1 h-1 rounded-full bg-sage-500 mt-0.5" />
+                <span className="w-1 h-1 rounded-full bg-forest mt-0.5" />
               )}
             </button>
           );

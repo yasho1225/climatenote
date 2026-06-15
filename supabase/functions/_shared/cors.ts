@@ -16,21 +16,34 @@ function parseAllowedOrigins(): string[] {
     .filter(Boolean);
 }
 
+/** Allow any local dev port (Vite may use 5174+ when 5173 is taken). */
+function isLocalDevOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+  } catch {
+    return false;
+  }
+}
+
+function isOriginAllowed(origin: string | null, allowedOrigins: string[]): boolean {
+  if (!origin) return false;
+  return allowedOrigins.includes(origin) || isLocalDevOrigin(origin);
+}
+
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin');
   const allowedOrigins = parseAllowedOrigins();
-  const allowOrigin =
-    origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
 
   const headers: Record<string, string> = {
     'Access-Control-Allow-Headers':
       'authorization, x-client-info, apikey, content-type, x-cron-secret',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
+    Vary: 'Origin',
   };
 
-  if (origin && allowedOrigins.includes(origin)) {
-    headers['Access-Control-Allow-Origin'] = allowOrigin;
+  if (isOriginAllowed(origin, allowedOrigins)) {
+    headers['Access-Control-Allow-Origin'] = origin!;
   }
 
   return headers;

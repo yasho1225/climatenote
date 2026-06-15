@@ -141,7 +141,7 @@ function CompactArticleRow({ article, onSelect }: { article: Article; onSelect: 
           {article.title}
         </h3>
         {article.subtitle && (
-          <p className="text-[14px] text-forest/50 leading-[1.45] line-clamp-1 mb-2">
+          <p className="text-[14px] text-ink-muted leading-[1.45] line-clamp-1 mb-2">
             {article.subtitle}
           </p>
         )}

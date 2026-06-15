@@ -26,6 +26,7 @@ import { loadFreshUserProfile } from '../lib/profileStats';
 import { defaultDisplayNameForUser } from '../lib/publicProfile';
 import { scrollAppToTop } from '../lib/scrollToTop';
 import { useScrollToTop } from '../hooks/useScrollToTop';
+import BotanicalBackground from './layout/BotanicalBackground';
 
 interface DashboardProps {
   session: Session;
@@ -47,6 +48,7 @@ export default function Dashboard({ session }: DashboardProps) {
   const [showArticleReview, setShowArticleReview] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [focusArchiveSearch, setFocusArchiveSearch] = useState(false);
 
   const isAdmin = userProfile?.role === 'admin';
   const isWriter = userProfile?.role === 'writer' || isAdmin;
@@ -63,6 +65,16 @@ export default function Dashboard({ session }: DashboardProps) {
     setCurrentTab(tab);
     if (tab !== 'notes') {
       setSelectedArchiveArticle(null);
+      setFocusArchiveSearch(false);
+    }
+    scrollAppToTop();
+  };
+
+  const handleOpenSearch = () => {
+    setSelectedArchiveArticle(null);
+    setFocusArchiveSearch(true);
+    if (currentTab !== 'notes') {
+      setCurrentTab('notes');
     }
     scrollAppToTop();
   };
@@ -106,7 +118,7 @@ export default function Dashboard({ session }: DashboardProps) {
         } catch (createError: unknown) {
           const pgError = createError as { code?: string };
           if (pgError.code === '23505') {
-            const { data: existingProfile, error: retryError } = await supabase
+            const { error: retryError } = await supabase
               .from('user_profiles')
               .select('*')
               .eq('id', session.user.id)
@@ -164,10 +176,10 @@ export default function Dashboard({ session }: DashboardProps) {
 
   if (loading) {
     return (
-      <div className="app-page flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4 card-glass px-8 py-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-600 mx-auto" />
-          <div className="text-sage-600 text-sm">Loading The Climate Note...</div>
+      <div className="app-page app-shell flex items-center justify-center">
+        <div className="text-center space-y-4 app-card px-8 py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-500 mx-auto" />
+          <div className="text-ink-muted text-sm font-medium">Loading The Climate Note...</div>
         </div>
       </div>
     );
@@ -176,21 +188,23 @@ export default function Dashboard({ session }: DashboardProps) {
   const headerVariant = currentTab === 'home' ? 'home' : 'title';
 
   return (
-    <div className="app-page">
+    <div className="app-page app-shell">
+      <BotanicalBackground />
       <AppHeader
         variant={headerVariant}
         userProfile={userProfile}
         onProfilePress={() => handleTabChange('profile')}
         onNotificationsPress={() => setShowNotificationSettings(true)}
+        onSearchPress={handleOpenSearch}
+        showSearch={!selectedArchiveArticle}
       />
 
-      <main className="app-main pb-24 pt-1" data-scroll-root>
+      <main className="app-main pt-1" data-scroll-root>
         {currentTab === 'home' && (
           <HomeView
             article={todayArticle}
             userProfile={userProfile}
             onProfileUpdate={setUserProfile}
-            onOpenNotes={() => handleTabChange('notes')}
           />
         )}
 
@@ -202,17 +216,17 @@ export default function Dashboard({ session }: DashboardProps) {
         )}
 
         {currentTab === 'notes' && (
-          <div className="max-w-lg mx-auto px-4 pb-6 pt-2">
+          <div className="app-screen !pb-6">
             {selectedArchiveArticle ? (
               <div>
                 <button
                   type="button"
                   onClick={() => setSelectedArchiveArticle(null)}
-                  className="mb-4 flex items-center gap-1 text-sage-600 hover:text-forest font-semibold text-sm active:opacity-70"
+                  className="mb-4 flex items-center gap-1 text-ink-muted hover:text-forest font-semibold text-sm active:opacity-70"
                 >
                   ← Back to archive
                 </button>
-                <div className="card-surface overflow-hidden">
+                <div className="app-card overflow-hidden">
                   <ArticleView
                     article={selectedArchiveArticle}
                     userProfile={userProfile}
@@ -224,10 +238,14 @@ export default function Dashboard({ session }: DashboardProps) {
             ) : (
               <>
                 <h1 className="page-title">Archive</h1>
-                <ArchiveView onArticleSelect={(article) => {
-                  setSelectedArchiveArticle(article);
-                  scrollAppToTop();
-                }} />
+                <ArchiveView
+                  onArticleSelect={(article) => {
+                    setSelectedArchiveArticle(article);
+                    scrollAppToTop();
+                  }}
+                  autoFocusSearch={focusArchiveSearch}
+                  onSearchFocused={() => setFocusArchiveSearch(false)}
+                />
               </>
             )}
           </div>
@@ -257,11 +275,11 @@ export default function Dashboard({ session }: DashboardProps) {
 
       {overlay === 'goals' && (
         <div className="fixed inset-0 z-50 overflow-y-auto pb-8 app-overlay" data-scroll-root>
-          <div className="sticky top-0 app-chrome px-4 py-3 flex items-center gap-3 border-b safe-top">
-            <button type="button" onClick={() => setOverlay(null)} className="text-sage-600 font-medium text-sm">
+          <div className="sticky top-0 bg-sage-50/90 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b border-sage-200/50 safe-top">
+            <button type="button" onClick={() => setOverlay(null)} className="text-ink-muted font-medium text-sm">
               ← Back
             </button>
-            <h2 className="font-bold text-forest">My Goals</h2>
+            <h2 className="font-bold text-ink">My Goals</h2>
           </div>
           <GoalsView userProfile={userProfile} />
         </div>
@@ -269,11 +287,11 @@ export default function Dashboard({ session }: DashboardProps) {
 
       {overlay === 'leaderboard' && (
         <div className="fixed inset-0 z-50 overflow-y-auto pb-8 app-overlay" data-scroll-root>
-          <div className="sticky top-0 app-chrome px-4 py-3 flex items-center gap-3 border-b safe-top">
-            <button type="button" onClick={() => setOverlay(null)} className="text-sage-600 font-medium text-sm">
+          <div className="sticky top-0 bg-sage-50/90 backdrop-blur-md px-4 py-3 flex items-center gap-3 border-b border-sage-200/50 safe-top">
+            <button type="button" onClick={() => setOverlay(null)} className="text-ink-muted font-medium text-sm">
               ← Back
             </button>
-            <h2 className="font-bold text-forest">Leaderboard</h2>
+            <h2 className="font-bold text-ink">Leaderboard</h2>
           </div>
           <LeaderboardView userProfile={userProfile} />
         </div>

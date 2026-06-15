@@ -7,6 +7,7 @@ import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts';
 import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts';
 import { callGeminiGenerateContent } from '../_shared/gemini.ts';
 import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts';
+import { isValidUuid } from '../_shared/requestGuards.ts';
 
 const ENDPOINT = 'generate-article-insights';
 
@@ -270,7 +271,7 @@ serve(async (req) => {
     const body = await req.json();
     const { article_id, force_regenerate } = body;
 
-    if (typeof article_id !== 'string' || article_id.length === 0) {
+    if (typeof article_id !== 'string' || !isValidUuid(article_id)) {
       return new Response(
         JSON.stringify({ error: 'Invalid article_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

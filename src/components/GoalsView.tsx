@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Plus, X, Check, ChevronRight, Lock, Globe, Flame, Calendar, Trophy, Clock, RotateCcw } from 'lucide-react';
+import { Target, Plus, X, Check, Lock, Globe, Flame, Calendar, Clock, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserProfile } from '../types';
@@ -253,50 +253,50 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-emerald-600">Loading your goals...</div>
+      <div className="app-screen py-16 flex items-center justify-center">
+        <div className="animate-pulse text-forest font-medium">Loading your goals...</div>
       </div>
     );
   }
 
   if (!userProfile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <p className="text-gray-600 text-center">Sign in to view and manage your goals.</p>
+      <div className="app-screen py-16 flex items-center justify-center px-4">
+        <p className="text-ink-muted text-center">Sign in to view and manage your goals.</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="app-screen space-y-5 !pb-8">
 
       {/* Grace Period Decision Modal */}
       {decisionGoal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+          <div className="app-card max-w-md w-full p-6 space-y-5">
             <div className="text-center">
               <div className="text-4xl mb-2">🌱</div>
-              <h3 className="text-xl font-bold text-gray-900">Your goal period ended!</h3>
-              <p className="text-gray-500 text-sm mt-1">"{decisionGoal.goal.title}"</p>
+              <h3 className="text-xl font-bold text-ink">Your goal period ended!</h3>
+              <p className="text-ink-muted text-sm mt-1">"{decisionGoal.goal.title}"</p>
             </div>
 
-            <div className="bg-emerald-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-700">
+            <div className="app-feature-card text-center !p-4">
+              <p className="text-2xl font-bold text-forest">
                 {getProgressPercent(decisionGoal.goal)}% complete
               </p>
-              <p className="text-sm text-emerald-600 mt-1">
+              <p className="text-sm text-forest/80 mt-1">
                 {decisionGoal.goal.current_progress} of {decisionGoal.goal.target_value} actions taken
               </p>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-ink-muted mt-2">
                 You showed up — that's what matters 💚
               </p>
             </div>
 
-            <p className="text-sm text-gray-600 text-center">What would you like to do?</p>
+            <p className="text-sm text-ink-soft text-center">What would you like to do?</p>
 
             <div className="space-y-3">
               <button onClick={() => handleDecision('mark_complete')}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors">
+                className="w-full bg-forest hover:bg-forest/90 text-white font-semibold py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors">
                 <Check className="w-5 h-5" />
                 <span>Mark as Complete</span>
               </button>
@@ -322,15 +322,15 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
-            <Target className="w-7 h-7 text-emerald-600" />
+          <h2 className="page-title !mb-1 flex items-center gap-2">
+            <Target className="w-6 h-6 text-forest" />
             <span>My Goals</span>
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Set and track your environmental commitments</p>
+          <p className="text-ink-muted text-sm">Set and track your environmental commitments</p>
         </div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-forest hover:bg-forest/90 text-white px-4 py-2.5 rounded-xl font-semibold transition-colors shadow-soft"
         >
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">New Goal</span>
@@ -339,10 +339,10 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
 
       {/* Create Goal Form */}
       {showCreateForm && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+        <div className="app-card p-6 space-y-5">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-gray-900">Create a New Goal</h3>
-            <button onClick={() => setShowCreateForm(false)} className="text-gray-400 hover:text-gray-600">
+            <h3 className="text-lg font-bold text-ink">Create a New Goal</h3>
+            <button onClick={() => setShowCreateForm(false)} className="text-ink-muted hover:text-ink">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -458,12 +458,12 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
       )}
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-sage-50/90 rounded-xl p-1 border border-sage-200/60">
         {(['active', 'completed', 'incomplete'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors capitalize ${activeTab === tab ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors capitalize ${activeTab === tab ? 'bg-forest text-white shadow-soft' : 'text-ink-muted hover:text-ink'}`}
           >
             {tab === 'incomplete' ? 'Incomplete' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             <span className="ml-1 text-xs">
@@ -498,12 +498,12 @@ export default function GoalsView({ userProfile }: GoalsViewProps) {
             const daysLeft = getDaysLeft(goal.end_date);
 
             return (
-              <div key={goal.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+              <div key={goal.id} className="app-card p-5 space-y-4">
                 {/* Goal Header */}
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0 pr-3">
                     <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-xs font-medium px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full">
+                      <span className="community-badge !py-1 !px-2.5 !text-[11px]">
                         {GOAL_TYPE_LABELS[goal.goal_type]}
                       </span>
                       {goal.is_public

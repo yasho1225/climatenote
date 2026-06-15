@@ -21,16 +21,18 @@
     --forest-canopy-light: #3d5240;
 
     /* Neutrals & surfaces */
-    --neutral-cream: #f5f7f4;
-    --neutral-warm: #faf9f6;
-    --surface-glass: rgba(255, 255, 255, 0.88);
-    --surface-card: rgba(255, 255, 255, 0.82);
-    --surface-elevated: rgba(255, 255, 255, 0.9);
+    --neutral-cream: #f0f4ee;
+    --neutral-warm: #ece8e2;
+    --surface-glass: rgba(248, 251, 246, 0.88);
+    --surface-card: #f8fbf6;
+    --surface-elevated: rgba(250, 252, 248, 0.94);
+    --community-canvas: #eef2ec;
 
     /* Text */
-    --text-primary: #1f3323;
-    --text-secondary: rgba(45, 74, 50, 0.65);
-    --text-muted: rgba(74, 99, 78, 0.55);
+    --text-primary: #2c3429;
+    --text-secondary: #4a5248;
+    --text-muted: #8a9289;
+    --text-section: #5c564e;
 
     /* Shadows */
     --shadow-soft: 0 4px 24px -4px rgba(21, 35, 24, 0.12);
@@ -48,6 +50,28 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  html.mobile-app {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html.mobile-app body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  html.mobile-app #root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
   }
 
   body {
@@ -135,6 +159,16 @@
   }
 }
 
+@keyframes leaf-sway-gentle {
+  0%,
+  100% {
+    transform: rotate(-2deg) translateY(0);
+  }
+  50% {
+    transform: rotate(2deg) translateY(-4px);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: 0% 50%;
@@ -154,15 +188,15 @@
   }
 
   .text-editorial-body {
-    @apply text-forest/65 leading-relaxed;
+    @apply text-ink-soft leading-relaxed;
   }
 
   .text-editorial-meta {
-    @apply text-[13px] text-sage-500 leading-none;
+    @apply text-[13px] text-ink-muted leading-none;
   }
 
   .text-editorial-label {
-    @apply text-xs font-medium text-sage-600;
+    @apply text-xs font-semibold text-earth-warm uppercase tracking-wide;
   }
 
   /* Primary CTA — green gradient with elevation */
@@ -206,17 +240,114 @@
   }
 
   .btn-outline:hover:not(:disabled) {
-    @apply border-sage-300 bg-white;
+    @apply border-sage-300;
+    background: var(--surface-card);
+  }
+
+  /* Sign in with Apple — Apple HIG black button */
+  .btn-apple {
+    @apply inline-flex items-center justify-center gap-2.5 w-full py-3.5 text-[15px] font-semibold text-white rounded-xl transition-colors;
+    background: #000000;
+  }
+
+  .btn-apple:hover:not(:disabled) {
+    background: #1a1a1a;
+  }
+
+  .btn-apple:active:not(:disabled) {
+    background: #333333;
+  }
+
+  .btn-apple:disabled {
+    @apply opacity-50 cursor-not-allowed;
   }
 
   /* Frosted card surface */
   .card-surface {
     background: var(--surface-card);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
     border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-card);
-    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 2px 12px rgba(41, 54, 41, 0.06);
+    border: 1px solid rgba(74, 99, 78, 0.08);
+  }
+
+  /* App canvas — sage wash with botanical layer underneath */
+  .app-canvas,
+  .community-canvas {
+    background: transparent;
+    min-height: 100%;
+  }
+
+  .app-screen {
+    @apply w-full px-4 pb-28 pt-1;
+  }
+
+  .native-shell {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .app-shell {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+  }
+
+  .app-card,
+  .community-card {
+    background: var(--surface-card);
+    border-radius: 1.25rem;
+    box-shadow: 0 2px 14px rgba(41, 54, 41, 0.07);
+    border: 1px solid rgba(74, 99, 78, 0.09);
+  }
+
+  .app-feature-card {
+    @apply rounded-[1.25rem] p-6 text-ink;
+    background: linear-gradient(145deg, #e6ece3 0%, #dce6dc 100%);
+    box-shadow: 0 2px 12px rgba(41, 54, 41, 0.06);
+    border: 1px solid rgba(74, 99, 78, 0.1);
+  }
+
+  .community-section-title,
+  .section-title {
+    @apply text-base font-bold mb-3;
+    color: var(--text-section);
+  }
+
+  .page-title {
+    @apply text-[1.375rem] font-bold tracking-tight mb-2;
+    color: var(--text-primary);
+  }
+
+  .community-hero-title {
+    @apply text-[1.375rem] font-bold leading-tight;
+    color: var(--text-primary);
+  }
+
+  .community-badge {
+    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-semibold;
+    background: #e4ede4;
+    color: #3a5240;
+  }
+
+  .community-fab,
+  .app-fab {
+    @apply w-14 h-14 rounded-full flex items-center justify-center text-white transition-colors;
+    background: #2f4233;
+    box-shadow: 0 4px 16px rgba(47, 66, 51, 0.28);
+  }
+
+  .community-fab:hover,
+  .app-fab:hover {
+    background: #3a5240;
+  }
+
+  .stat-tile {
+    @apply rounded-2xl p-3.5 text-center;
+  }
+
+  .stat-tile--streak {
+    background: #fdf4ee;
+  }
+
+  .stat-tile--notes {
+    background: #eef2ec;
   }
 
   .card-highlight {
@@ -258,45 +389,141 @@
 
   /* Form inputs */
   .input-field {
-    @apply w-full pl-12 pr-4 py-3.5 rounded-2xl text-forest text-[15px] transition-shadow;
-    background: rgba(245, 247, 244, 0.7);
-    border: 1px solid rgba(45, 74, 50, 0.12);
+    @apply w-full pl-12 pr-4 py-3.5 rounded-2xl text-ink text-[15px] transition-shadow;
+    background: rgba(240, 245, 238, 0.85);
+    border: 1px solid rgba(74, 99, 78, 0.12);
   }
 
   .input-field:focus {
-    @apply outline-none ring-2 ring-sage-300 border-transparent;
+    @apply outline-none ring-2 ring-sage-200 border-transparent;
   }
 
-  /* Section headings */
-  .section-title {
-    @apply text-lg font-bold text-forest mb-3;
-  }
-
-  .page-title {
-    @apply font-serif text-[1.75rem] font-medium tracking-tight text-forest mb-2;
-  }
-
-  /* Authenticated app chrome — frosted, lets forest show through */
+  /* Authenticated app chrome */
   .app-chrome {
-    background: var(--surface-elevated);
+    background: var(--surface-glass);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-color: rgba(45, 74, 50, 0.08);
+    border-color: rgba(255, 255, 255, 0.35);
     box-shadow: var(--shadow-soft);
   }
 
   .app-page {
-    @apply min-h-screen relative;
+    @apply relative flex min-h-0 flex-1 flex-col overflow-hidden;
+    background: linear-gradient(
+      175deg,
+      #e8ede6 0%,
+      #eef2ec 35%,
+      #e6ece3 70%,
+      #e2e9df 100%
+    );
   }
 
   .app-main {
-    @apply relative;
+    @apply relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-contain scrollbar-hide;
+  }
+
+  /* Botanical decorative layer */
+  .botanical-bg {
+    z-index: 0;
+  }
+
+  .botanical-bg__wash {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 90% 60% at 100% 0%, rgba(168, 186, 168, 0.22) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 0% 100%, rgba(143, 168, 142, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(205, 217, 205, 0.12) 0%, transparent 60%);
+  }
+
+  .botanical-bg__leaf {
+    position: absolute;
+    opacity: 0.14;
+  }
+
+  .botanical-bg__leaf--1 {
+    width: 5.5rem;
+    height: auto;
+    top: 6%;
+    right: -1rem;
+    animation: leaf-sway-gentle 9s ease-in-out infinite;
+  }
+
+  .botanical-bg__leaf--2 {
+    width: 4rem;
+    top: 38%;
+    left: -0.75rem;
+    opacity: 0.1;
+    animation: leaf-sway-gentle 11s ease-in-out infinite 1.5s;
+  }
+
+  .botanical-bg__leaf--3 {
+    width: 3rem;
+    bottom: 22%;
+    right: 1.5rem;
+    opacity: 0.09;
+    animation: leaf-sway-gentle 10s ease-in-out infinite 3s;
+  }
+
+  .botanical-bg__fern {
+    position: absolute;
+    opacity: 0.1;
+  }
+
+  .botanical-bg__fern--1 {
+    width: 5rem;
+    bottom: 12%;
+    left: -0.5rem;
+    transform: rotate(-8deg);
+    animation: leaf-sway-gentle 12s ease-in-out infinite 0.5s;
+  }
+
+  .botanical-bg__fern--2 {
+    width: 4rem;
+    top: 18%;
+    left: 2rem;
+    opacity: 0.07;
+    transform: rotate(12deg) scaleX(-1);
+    animation: leaf-sway-gentle 13s ease-in-out infinite 2s;
+  }
+
+  .botanical-bg__plant {
+    position: absolute;
+    width: 3.5rem;
+    bottom: 18%;
+    right: 0.5rem;
+    opacity: 0.08;
+    animation: leaf-sway-gentle 14s ease-in-out infinite 4s;
+  }
+
+  .botanical-bg__dots {
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image: radial-gradient(rgba(95, 125, 98, 0.12) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(180deg, transparent 0%, black 15%, black 85%, transparent 100%);
+  }
+
+  /* Auth screen — matches in-app sage atmosphere */
+  .auth-screen {
+    min-height: 100%;
+    flex: 1;
+    overflow-y: auto;
+    overscroll-y: contain;
+    background: linear-gradient(
+      175deg,
+      #e8ede6 0%,
+      #eef2ec 35%,
+      #e6ece3 70%,
+      #e2e9df 100%
+    );
   }
 
   /* Full-screen overlays — translucent so backdrop stays visible */
   .app-overlay {
     background:
-      linear-gradient(180deg, rgba(245, 247, 244, 0.72) 0%, rgba(238, 242, 238, 0.88) 100%);
+      linear-gradient(180deg, rgba(232, 237, 230, 0.78) 0%, rgba(220, 230, 220, 0.92) 100%);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
@@ -338,164 +565,61 @@
     );
   }
 
-  /* ── App variant: calm atmospheric forest ── */
+  /* ── App variant: same immersive forest as Get Started, slightly softer motion ── */
   .forest-bg--app .forest-bg__gradient {
-    opacity: 1;
-    background:
-      radial-gradient(ellipse 100% 60% at 50% -8%, rgba(139, 168, 142, 0.38) 0%, transparent 58%),
-      radial-gradient(ellipse 55% 40% at 12% 22%, rgba(109, 148, 112, 0.2) 0%, transparent 62%),
-      radial-gradient(ellipse 50% 38% at 88% 28%, rgba(181, 205, 181, 0.22) 0%, transparent 58%),
-      linear-gradient(
-        180deg,
-        rgba(45, 74, 50, 0.18) 0%,
-        rgba(45, 74, 50, 0.07) 16%,
-        transparent 40%
-      ),
-      linear-gradient(
-        168deg,
-        #c8dcc8 0%,
-        #dce8dc 22%,
-        var(--neutral-cream) 45%,
-        #eef3ee 72%,
-        #dde8dd 100%
-      );
-  }
-
-  .forest-bg--app .forest-bg__atmosphere {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(
-        ellipse 90% 55% at 50% -2%,
-        rgba(181, 205, 181, 0.45) 0%,
-        transparent 62%
-      ),
-      radial-gradient(
-        ellipse 60% 40% at 20% 80%,
-        rgba(109, 148, 112, 0.12) 0%,
-        transparent 70%
-      );
-    opacity: 0.85;
-  }
-
-  .forest-bg--app .forest-bg__horizon {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 42%;
-    background: linear-gradient(
-      to top,
-      rgba(45, 74, 50, 0.2) 0%,
-      rgba(74, 99, 78, 0.1) 30%,
-      rgba(139, 168, 142, 0.04) 55%,
-      transparent 100%
-    );
-    pointer-events: none;
+    opacity: 0.94;
   }
 
   .forest-bg--app .forest-bg__glow {
-    width: 75%;
-    height: 58%;
-    filter: blur(68px);
-    opacity: 0.36;
-    animation: app-atmosphere-drift 50s ease-in-out infinite;
-  }
-
-  .forest-bg--app .forest-bg__glow--left {
-    top: 5%;
-    left: -15%;
-    background: radial-gradient(circle, rgba(139, 168, 142, 0.55) 0%, transparent 68%);
-  }
-
-  .forest-bg--app .forest-bg__glow--right {
-    top: 25%;
-    right: -18%;
-    background: radial-gradient(circle, rgba(109, 148, 112, 0.45) 0%, transparent 70%);
-    animation-duration: 65s;
-    animation-direction: reverse;
+    opacity: 0.22;
   }
 
   .forest-bg--app .forest-bg__blob {
-    filter: blur(48px);
-    opacity: 0.3;
-    animation: app-atmosphere-drift 55s ease-in-out infinite;
-  }
-
-  .forest-bg--app .forest-bg__blob--1 {
-    width: 240px;
-    height: 200px;
-    top: 8%;
-    left: -5%;
-    background: var(--forest-glow);
-    border-radius: 60% 40% 55% 45%;
-    animation-duration: 70s;
-  }
-
-  .forest-bg--app .forest-bg__blob--2 {
-    width: 180px;
-    height: 180px;
-    top: 35%;
-    right: -8%;
-    background: var(--forest-accent);
-    border-radius: 45% 55% 50% 50%;
-    animation-duration: 58s;
-    animation-delay: 3s;
-  }
-
-  .forest-bg--app .forest-bg__blob--3 {
-    width: 150px;
-    height: 140px;
-    bottom: 28%;
-    left: 22%;
-    background: var(--forest-canopy-light);
-    border-radius: 50% 45% 55% 50%;
-    animation-duration: 62s;
-    animation-delay: 6s;
+    opacity: 0.18;
   }
 
   .forest-bg--app .forest-bg__blob--4 {
     position: absolute;
     width: 200px;
     height: 160px;
-    bottom: 18%;
-    right: 12%;
-    background: rgba(181, 205, 181, 0.85);
+    bottom: 14%;
+    right: 8%;
+    background: var(--forest-glow);
     border-radius: 55% 45% 48% 52%;
-    filter: blur(52px);
-    opacity: 0.2;
-    animation: app-atmosphere-drift 68s ease-in-out infinite 4s;
+    filter: blur(48px);
+    opacity: 0.16;
+    animation: blob-drift 22s ease-in-out infinite 3s;
   }
 
   .forest-bg--app .forest-bg__trees {
-    height: 28%;
-    opacity: 0.42;
+    height: 34%;
+    opacity: 0.48;
+  }
+
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--1,
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--2,
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--3,
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--4,
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--5,
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--6,
+  .forest-bg--app .forest-bg__trees--sway .forest-bg__tree--7 {
+    animation-duration: 7s;
+  }
+
+  .forest-bg--app .forest-bg__rays--active {
+    opacity: 0.88;
+  }
+
+  .forest-bg--app .forest-bg__ray {
+    opacity: 0.07;
+  }
+
+  .forest-bg--app .forest-bg__particle {
+    opacity: 0.55;
   }
 
   .forest-bg--app .forest-bg__noise {
-    opacity: 0.055;
-  }
-
-  /* App-only subtle light rays */
-  .forest-bg__rays--app {
-    opacity: 1;
-  }
-
-  .forest-bg__rays--app .forest-bg__ray {
     opacity: 0.06;
-    animation: light-ray 14s ease-in-out infinite;
-  }
-
-  .forest-bg__rays--app .forest-bg__ray--2 {
-    animation-delay: 4s;
-  }
-
-  /* App-only floating motes */
-  .forest-bg__particles--app .forest-bg__particle--app {
-    width: 2px;
-    height: 2px;
-    background: rgba(45, 74, 50, 0.35);
-    opacity: 0.6;
   }
 
   .forest-bg__glow {
@@ -702,6 +826,11 @@
     display: none;
   }
 
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   .mobile-frame-viewport .mobile-frame-fixed {
     position: absolute !important;
   }
@@ -713,17 +842,15 @@
   }
 }
 
-/* ─── Reduced motion ──────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .forest-bg__tree,
   .forest-bg__glow,
   .forest-bg__blob,
   .forest-bg__ray,
   .forest-bg__particle,
-  .forest-bg--app .forest-bg__glow,
-  .forest-bg--app .forest-bg__blob,
-  .forest-bg__rays--app .forest-bg__ray,
-  .forest-bg__particles--app .forest-bg__particle--app,
+  .botanical-bg__leaf,
+  .botanical-bg__fern,
+  .botanical-bg__plant,
   .btn-primary {
     animation: none !important;
     transition: none !important;
@@ -731,5 +858,17 @@
 
   .btn-primary:hover:not(:disabled) {
     transform: none;
+  }
+}
+
+/* Touch devices — prefer press feedback over hover states */
+@media (hover: none) and (pointer: coarse) {
+  .btn-primary:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .community-fab:hover,
+  .app-fab:hover {
+    background: #2f4233;
   }
 }

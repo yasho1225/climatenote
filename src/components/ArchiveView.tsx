@@ -1,23 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { Archive, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Archive, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Article } from '../types';
 import ArticleCard, { ArticleCardSkeleton } from './ui/ArticleCard';
+import { matchesQuery, stripHtmlToText } from '../lib/searchText';
 
 interface ArchiveViewProps {
   onArticleSelect: (article: Article) => void;
+  /** Focus the search field when navigating from the header search button */
+  autoFocusSearch?: boolean;
+  onSearchFocused?: () => void;
 }
 
-export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
+function articleSearchText(article: Article): string {
+  const parts = [
+    article.title,
+    article.subtitle,
+    article.category,
+    stripHtmlToText(article.content),
+    ...(article.key_takeaways ?? []),
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+export default function ArchiveView({
+  onArticleSelect,
+  autoFocusSearch = false,
+  onSearchFocused,
+}: ArchiveViewProps) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadArticles();
   }, []);
+
+  useEffect(() => {
+    if (!autoFocusSearch) return;
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+      onSearchFocused?.();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [autoFocusSearch, onSearchFocused]);
 
   const loadArticles = async () => {
     try {
@@ -44,22 +73,36 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
     }
   };
 
-  const filteredArticles = articles.filter((article) => {
-    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase())
-      || article.subtitle?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const trimmedSearch = searchTerm.trim();
 
-  const showFeaturedLead = !searchTerm && filteredArticles.length > 0;
+  const filteredArticles = useMemo(() => {
+    return articles.filter((article) => {
+      const matchesSearchField = matchesQuery(articleSearchText(article), trimmedSearch);
+      const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
+      return matchesSearchField && matchesCategory;
+    });
+  }, [articles, trimmedSearch, selectedCategory]);
+
+  const showFeaturedLead = !trimmedSearch && selectedCategory === 'all' && filteredArticles.length > 0;
   const featuredArticle = showFeaturedLead ? filteredArticles[0] : null;
   const listArticles = showFeaturedLead ? filteredArticles.slice(1) : filteredArticles;
+
+  const handleSearchIconClick = () => {
+    searchInputRef.current?.focus();
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    searchInputRef.current?.focus();
+  };
 
   if (loading) {
     return (
       <div className="py-2">
-        <ArticleCardSkeleton featured />
-        <div className="card-surface px-3">
+        <div className="app-card p-4 mb-5">
+          <ArticleCardSkeleton featured />
+        </div>
+        <div className="app-card px-3">
           <ArticleCardSkeleton />
           <ArticleCardSkeleton />
         </div>
@@ -69,30 +112,50 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
 
   return (
     <div>
-      <p className="text-[15px] text-forest/55 leading-relaxed mb-5 -mt-1">
+      <p className="text-[15px] text-ink-muted leading-relaxed mb-5 -mt-1">
         Every story we&apos;ve published — browse, search, and revisit.
       </p>
 
       <div className="space-y-3 mb-6">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <button
+            type="button"
+            onClick={handleSearchIconClick}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-forest transition-colors"
+            aria-label="Focus search"
+          >
+            <Search className="h-4 w-4" />
+          </button>
           <input
-            type="text"
+            ref={searchInputRef}
+            type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search stories..."
-            className="w-full pl-10 pr-4 py-3 text-[15px] text-forest placeholder:text-sage-400 input-field !pl-10"
+            placeholder="Search stories, topics, categories..."
+            className="w-full pl-10 pr-10 py-3 text-[15px] text-ink placeholder:text-ink-muted/60 input-field !pl-10 !pr-10"
+            aria-label="Search archive stories"
+            enterKeyHint="search"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-forest transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
-            className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
               selectedCategory === 'all'
                 ? 'bg-forest text-white shadow-soft'
-                : 'card-glass text-forest/80'
+                : 'bg-sage-50/90 text-ink-soft border border-sage-200/70'
             }`}
           >
             All
@@ -102,10 +165,10 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
               key={category}
               type="button"
               onClick={() => setSelectedCategory(category)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
                 selectedCategory === category
                   ? 'bg-forest text-white shadow-soft'
-                  : 'card-glass text-forest/80'
+                  : 'bg-sage-50/90 text-ink-soft border border-sage-200/70'
               }`}
             >
               {category}
@@ -114,16 +177,34 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
         </div>
       </div>
 
+      {trimmedSearch && (
+        <p className="text-xs text-ink-muted mb-4 -mt-2">
+          {filteredArticles.length} result{filteredArticles.length !== 1 ? 's' : ''} for &ldquo;{trimmedSearch}&rdquo;
+        </p>
+      )}
+
       {filteredArticles.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12 app-card px-6">
           <Archive className="w-12 h-12 text-sage-300 mx-auto mb-4" />
           <h3 className="text-editorial-title text-lg mb-2">No stories found</h3>
-          <p className="text-[15px] text-forest/55">Try a different search or category.</p>
+          <p className="text-[15px] text-ink-muted">Try a different search or category.</p>
+          {(trimmedSearch || selectedCategory !== 'all') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCategory('all');
+              }}
+              className="mt-4 text-sm font-semibold text-forest hover:text-canopy"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
         <>
           {featuredArticle && (
-            <div className="card-surface p-4 mb-5">
+            <div className="app-card p-4 mb-5">
               <ArticleCard
                 article={featuredArticle}
                 onSelect={onArticleSelect}
@@ -134,10 +215,14 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
 
           {listArticles.length > 0 && (
             <section>
-              <h2 className="text-editorial-label mb-3 px-1">
-                {selectedCategory === 'all' ? 'More stories' : selectedCategory}
+              <h2 className="section-title px-1">
+                {trimmedSearch
+                  ? 'Matching stories'
+                  : selectedCategory === 'all'
+                    ? 'More stories'
+                    : selectedCategory}
               </h2>
-              <div className="card-surface px-3">
+              <div className="app-card px-3">
                 {listArticles.map((article) => (
                   <ArticleCard
                     key={article.id}

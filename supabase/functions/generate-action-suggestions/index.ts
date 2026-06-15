@@ -9,6 +9,7 @@ import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts';
 import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts';
 import { callGeminiGenerateContent } from '../_shared/gemini.ts';
 import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts';
+import { isValidUuid } from '../_shared/requestGuards.ts';
 
 const ENDPOINT = 'generate-action-suggestions';
 
@@ -64,6 +65,13 @@ serve(async (req) => {
     }
 
     const { article_id, article_title, article_subtitle, key_takeaways, article_content, force_regenerate } = await req.json();
+
+    if (typeof article_id === 'string' && article_id.length > 0 && !isValidUuid(article_id)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid article_id' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     // Return cached choices from article if available
     if (typeof article_id === 'string' && article_id.length > 0 && !force_regenerate) {

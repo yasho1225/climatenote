@@ -235,6 +235,16 @@ export async function fetchArticleInsights(
     return { insights: buildDemoInsights(article), cached: false, fromDemo: true };
   }
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return {
+      insights: buildDemoInsights(article),
+      cached: false,
+      fromDemo: false,
+      error: 'Sign in to generate AI summaries.',
+    };
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke('generate-article-insights', {
       body: {

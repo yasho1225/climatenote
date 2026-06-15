@@ -60,46 +60,46 @@ export default function ProfileView({
   ];
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-6 space-y-5 pt-2">
-      <div className="card-surface p-6 text-center">
+    <div className="app-screen space-y-5">
+      <div className="app-card p-6 text-center">
         <div
-          className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center text-white text-2xl font-bold shadow-card ${getAvatarColor(userProfile.id)}`}
+          className={`w-20 h-20 rounded-full mx-auto flex items-center justify-center text-white text-2xl font-bold shadow-community ${getAvatarColor(userProfile.id)}`}
         >
           {getInitials(userProfile)}
         </div>
-        <h2 className="mt-4 text-xl font-bold text-forest">{getDisplayName(userProfile)}</h2>
-        <p className="text-sm text-sage-600 mt-1">Level {mastery.level}: {mastery.title}</p>
-        <p className="text-xs text-sage-400 mt-1">Member since {memberSince}</p>
+        <h2 className="mt-4 text-xl font-bold text-ink">{getDisplayName(userProfile)}</h2>
+        <p className="text-sm text-ink-soft mt-1">Level {mastery.level}: {mastery.title}</p>
+        <p className="text-xs text-ink-muted mt-1">Member since {memberSince}</p>
 
         <div className="grid grid-cols-2 gap-3 mt-6">
-          <div className="bg-orange-50 rounded-2xl p-3">
+          <div className="stat-tile stat-tile--streak">
             <Flame className="w-5 h-5 text-orange-500 mx-auto mb-1" />
             <p className="text-xl font-bold text-orange-700">{userProfile.streak}</p>
-            <p className="text-xs text-orange-500">day streak</p>
+            <p className="text-xs text-orange-600/80">day streak</p>
           </div>
-          <div className="bg-sage-50 rounded-2xl p-3">
+          <div className="stat-tile stat-tile--notes">
             <BookOpen className="w-5 h-5 text-sage-600 mx-auto mb-1" />
-            <p className="text-xl font-bold text-forest">{userProfile.total_notes}</p>
-            <p className="text-xs text-sage-600">notes written</p>
+            <p className="text-xl font-bold text-ink">{userProfile.total_notes}</p>
+            <p className="text-xs text-ink-muted">notes written</p>
           </div>
         </div>
       </div>
 
-      <div className="card-surface overflow-hidden">
+      <div className="app-card overflow-hidden">
         {menuItems.map(({ icon: Icon, label, subtitle, onClick }) => (
           <button
             key={label}
             type="button"
             onClick={onClick}
-            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-sage-50 transition-colors border-b border-sage-50 last:border-0"
+            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-mist transition-colors border-b border-sage-100/80 last:border-0"
           >
             <div className="w-9 h-9 rounded-xl bg-sage-100 flex items-center justify-center">
-              <Icon className="w-4 h-4 text-sage-600" />
+              <Icon className="w-4 h-4 text-sage-600" strokeWidth={2} />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <span className="block font-medium text-forest text-sm">{label}</span>
+              <span className="block font-semibold text-ink text-sm">{label}</span>
               {subtitle ? (
-                <span className="block text-xs text-sage-500 mt-0.5">{subtitle}</span>
+                <span className="block text-xs text-ink-muted mt-0.5">{subtitle}</span>
               ) : null}
             </div>
             <ChevronRight className="w-4 h-4 text-sage-300 shrink-0" />
@@ -108,38 +108,38 @@ export default function ProfileView({
       </div>
 
       {(isWriter || isAdmin) && (
-        <div className="card-surface overflow-hidden">
-          <p className="px-4 pt-4 pb-2 text-xs font-bold text-sage-600 uppercase tracking-wider">
+        <div className="app-card overflow-hidden">
+          <p className="px-4 pt-4 pb-2 text-xs font-bold text-earth-warm uppercase tracking-wider">
             Writer tools
           </p>
           {isWriter && (
             <button
               type="button"
               onClick={onAdminPanel}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sage-50"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-mist transition-colors"
             >
               <Plus className="w-4 h-4 text-sage-600" />
-              <span className="text-sm font-medium text-forest">Create article</span>
+              <span className="text-sm font-semibold text-ink">Create article</span>
             </button>
           )}
           {isWriter && (
             <button
               type="button"
               onClick={onWriterPanel}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sage-50"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-mist transition-colors"
             >
               <FileEdit className="w-4 h-4 text-sage-600" />
-              <span className="text-sm font-medium text-forest">My articles</span>
+              <span className="text-sm font-semibold text-ink">My articles</span>
             </button>
           )}
           {isAdmin && (
             <button
               type="button"
               onClick={onArticleReview}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sage-50"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-mist transition-colors"
             >
               <CheckSquare className="w-4 h-4 text-sage-600" />
-              <span className="text-sm font-medium text-forest">Review articles</span>
+              <span className="text-sm font-semibold text-ink">Review articles</span>
             </button>
           )}
         </div>
@@ -148,17 +148,17 @@ export default function ProfileView({
       <button
         type="button"
         onClick={onSignOut}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-3xl border border-sage-200 text-sage-700 font-semibold text-sm hover:bg-sage-50 transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-sage-200 text-ink-soft font-semibold text-sm hover:bg-mist transition-colors app-card"
       >
         <LogOut className="w-4 h-4" />
         Sign out
       </button>
 
-      <div className="card-surface p-4 border border-red-100">
-        <p className="text-xs font-bold text-sage-600 uppercase tracking-wider mb-2">
+      <div className="app-card p-4 border border-red-100/80">
+        <p className="text-xs font-bold text-earth-warm uppercase tracking-wider mb-2">
           Danger zone
         </p>
-        <p className="text-xs text-sage-500 mb-3 leading-relaxed">
+        <p className="text-xs text-ink-muted mb-3 leading-relaxed">
           Permanently delete your account and all data. This cannot be undone.
         </p>
         <button

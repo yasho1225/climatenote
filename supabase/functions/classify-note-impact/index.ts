@@ -124,7 +124,7 @@ Classify this climate action note: "${noteContent}"`
 
 // ─── STEP 2: APPLY RESEARCH-BACKED FORMULA ────────────────────────────────────
 function calculateImpact(aiResult: any) {
-  const { category, action_type, quantity, unit, confidence } = aiResult
+  const { category, action_type, quantity, unit, confidence: _confidence } = aiResult
 
   // Build formula key based on action type
   let formulaKey = null
@@ -254,7 +254,7 @@ serve(async (req) => {
     let aiResult
     try {
       aiResult = await classifyWithAI(note_content, geminiKey)
-    } catch (err) {
+    } catch (_err) {
       // If AI fails, store as "other" with no impact
       aiResult = { category: 'other', action_type: 'general_action', quantity: null, unit: null, confidence: 0, reasoning: 'AI classification failed' }
     }
