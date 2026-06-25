@@ -137,10 +137,14 @@ Good examples for a fast fashion article:
 Bad examples (too vague â€” never do this):
 ["I will research more about fast fashion", "I'll make one small change in my daily routine", "I will track my progress for 7 days"]
 
-Return ONLY a valid JSON array of exactly 3 strings. No explanation, no markdown.`;
+Return ONLY a valid JSON object with this exact shape:
+{"suggestions": ["I will...", "I'll...", "I will..."]}
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+No explanation, no markdown.`;
+
+    const raw = await callGeminiGenerateContent(
+      geminiKey,
+      prompt,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,19 +158,10 @@ Return ONLY a valid JSON array of exactly 3 strings. No explanation, no markdown
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Gemini error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const raw = data.candidates[0].content.parts[0].text.trim();
-
-    // Strip markdown code fences if present
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-
-    // Parse and validate
-    const suggestions = JSON.parse(cleaned);
-    if (!Array.isArray(suggestions) || suggestions.length !== 3) {
+    const parsed = JSON.parse(cleaned);
+    const suggestions = normalizeSuggestionsPayload(parsed);
+    if (!suggestions) {
       throw new Error('Invalid suggestions format');
     }
 

@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Clock, Smartphone, Globe, Check, X } from 'lucide-react';
 import { showToast } from './ui/Toast';
 import { useCapacitorNotifications } from '../hooks/useCapacitorNotifications';
+import {
+  loadNotificationSettings,
+  saveNotificationSettings,
+  applySavedReminderSchedule,
+  stopAllReminders,
+} from '../lib/notificationScheduler';
 
 interface NotificationSettingsProps {
   onClose: () => void;
@@ -12,118 +18,100 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
   const [reminderTime, setReminderTime] = useState('18:00');
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
-  // Capacitor notifications for native app
   const capacitorNotifications = useCapacitorNotifications();
 
   useEffect(() => {
-    // Check current notification permission
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
 
-    // Load saved settings from localStorage
-    const savedSettings = localStorage.getItem('climateNoteSettings');
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
+    const settings = loadNotificationSettings();
+    if (settings) {
       setBrowserNotifications(settings.browserNotifications || false);
       setReminderTime(settings.reminderTime || '18:00');
     }
   }, []);
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      setPermission(permission);
-      
-      if (permission === 'granted') {
+    if (capacitorNotifications.isNative) {
+      const granted = await capacitorNotifications.requestPermissions();
+      if (granted) {
         setBrowserNotifications(true);
-        showToast('Notifications enabled! We\'ll remind you to write your climate note.', 'success');
-        
-        // Show a test notification
+        showToast('Notifications enabled!', 'success');
+      } else {
+        showToast('Notifications blocked. Enable them in device settings.', 'error');
+      }
+      return;
+    }
+
+    if ('Notification' in window) {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+
+      if (result === 'granted') {
+        setBrowserNotifications(true);
+        showToast('Notifications enabled!', 'success');
         new Notification('The Climate Note', {
-          body: 'Great! You\'ll now receive daily reminders to write your climate note.',
+          body: "You'll now receive daily reminders to write your climate note.",
           icon: '/favicon.ico',
-          tag: 'climate-note-welcome'
+          tag: 'climate-note-welcome',
         });
       } else {
-        showToast('Notifications blocked. You can enable them in your browser settings.', 'error');
+        showToast('Notifications blocked. Enable them in your browser settings.', 'error');
       }
     }
   };
 
-  const saveSettings = () => {
-    const settings = {
-      browserNotifications,
-      reminderTime,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    localStorage.setItem('climateNoteSettings', JSON.stringify(settings));
-    
+  const saveSettings = async () => {
+    saveNotificationSettings({ browserNotifications, reminderTime });
+
     if (browserNotifications) {
-      if (capacitorNotifications.canSchedule) {
-        // Use native notifications in app
-        capacitorNotifications.scheduleReminder(reminderTime);
+      if (capacitorNotifications.isNative) {
+        if (!capacitorNotifications.canSchedule) {
+          const granted = await capacitorNotifications.requestPermissions();
+          if (!granted) {
+            showToast('Notification permission is required', 'error');
+            return;
+          }
+        }
+        await capacitorNotifications.scheduleReminder(reminderTime);
       } else if (permission === 'granted') {
-        // Use web notifications in browser
-        scheduleNotifications();
+        await applySavedReminderSchedule();
+      } else {
+        showToast('Please enable notifications first', 'error');
+        return;
       }
+    } else {
+      await stopAllReminders();
     }
-    
+
     showToast('Notification settings saved!', 'success');
     onClose();
   };
 
-  const scheduleNotifications = () => {
-    // Clear existing notifications
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then(registration => {
-        registration.getNotifications({ tag: 'climate-note-reminder' }).then(notifications => {
-          notifications.forEach(notification => notification.close());
-        });
-      });
-    }
-
-    // Schedule daily notification
-    const [hours, minutes] = reminderTime.split(':').map(Number);
-    const now = new Date();
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-
-    // If the time has passed today, schedule for tomorrow
-    if (scheduledTime <= now) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
-    }
-
-    const timeUntilNotification = scheduledTime.getTime() - now.getTime();
-
-    setTimeout(() => {
-      if (permission === 'granted') {
-        new Notification('Time for your Climate Note! 🌱', {
-          body: 'Read today\'s environmental story and write your action note to keep your streak going.',
-          icon: '/favicon.ico',
-          tag: 'climate-note-reminder',
-          requireInteraction: true
-        });
-      }
-      
-      // Schedule the next day's notification
-      scheduleNotifications();
-    }, timeUntilNotification);
-  };
-
   const testNotification = () => {
+    if (capacitorNotifications.isNative && capacitorNotifications.canSchedule) {
+      void capacitorNotifications.scheduleReminder(
+        new Date(Date.now() + 5000).toTimeString().slice(0, 5)
+      );
+      showToast('Test notification scheduled for ~5 seconds from now', 'success');
+      return;
+    }
+
     if (permission === 'granted') {
       new Notification('Daily Reminder 🌱', {
         body: 'This is how your daily climate note reminder will look!',
         icon: '/favicon.ico',
-        tag: 'climate-note-test'
+        tag: 'climate-note-test',
       });
       showToast('Sample reminder sent!', 'success');
     } else {
       showToast('Please enable notifications first', 'error');
     }
   };
+
+  const canUseNotifications =
+    capacitorNotifications.permissionsGranted || permission === 'granted';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -142,7 +130,6 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
         </div>
 
         <div className="space-y-6">
-          {/* Browser Notifications */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -152,44 +139,38 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
                     {capacitorNotifications.isNative ? 'Push Notifications' : 'Browser Notifications'}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {capacitorNotifications.isNative 
-                      ? 'Get native push notifications' 
-                      : 'Get reminded on this device'
-                    }
+                    {capacitorNotifications.isNative
+                      ? 'Get native push notifications'
+                      : 'Get reminded on this device'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={
-                  capacitorNotifications.isNative 
+                  canUseNotifications
                     ? () => setBrowserNotifications(!browserNotifications)
-                    : permission === 'granted' 
-                      ? () => setBrowserNotifications(!browserNotifications) 
-                      : requestNotificationPermission
+                    : requestNotificationPermission
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  browserNotifications && (capacitorNotifications.permissionsGranted || permission === 'granted') 
-                    ? 'bg-emerald-600' 
+                  browserNotifications && canUseNotifications
+                    ? 'bg-emerald-600'
                     : 'bg-gray-200'
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    browserNotifications && (capacitorNotifications.permissionsGranted || permission === 'granted')
-                      ? 'translate-x-6' 
+                    browserNotifications && canUseNotifications
+                      ? 'translate-x-6'
                       : 'translate-x-1'
                   }`}
                 />
               </button>
             </div>
 
-            {permission === 'denied' && (
+            {permission === 'denied' && !capacitorNotifications.isNative && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-800">
-                  {capacitorNotifications.isNative
-                    ? 'Notifications are disabled. Enable them in your device settings.'
-                    : 'Notifications are blocked. Enable them in your browser settings to receive reminders.'
-                  }
+                  Notifications are blocked. Enable them in your browser settings to receive reminders.
                 </p>
               </div>
             )}
@@ -197,13 +178,12 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
             {capacitorNotifications.isNative && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                 <p className="text-sm text-emerald-800">
-                  ✨ Native app notifications are more reliable and work even when the app is closed!
+                  Native app notifications reschedule automatically when you reopen the app.
                 </p>
               </div>
             )}
           </div>
 
-          {/* Reminder Time */}
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
               <Clock className="w-5 h-5 text-purple-500" />
@@ -231,17 +211,16 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
             </p>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex items-center space-x-3">
             <button
-              onClick={saveSettings}
+              onClick={() => void saveSettings()}
               className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
             >
               <Check className="w-4 h-4" />
               <span>Save Settings</span>
             </button>
-            
-            {browserNotifications && (capacitorNotifications.permissionsGranted || permission === 'granted') && (
+
+            {browserNotifications && canUseNotifications && (
               <button
                 onClick={testNotification}
                 className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"

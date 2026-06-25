@@ -1,22 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Archive, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Archive, Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Article } from '../types';
+import ArticleCard, { ArticleCardSkeleton } from './ui/ArticleCard';
+import { matchesQuery, stripHtmlToText } from '../lib/searchText';
 
 interface ArchiveViewProps {
   onArticleSelect: (article: Article) => void;
+  /** Focus the search field when navigating from the header search button */
+  autoFocusSearch?: boolean;
+  onSearchFocused?: () => void;
 }
 
-export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
+function articleSearchText(article: Article): string {
+  const parts = [
+    article.title,
+    article.subtitle,
+    article.category,
+    stripHtmlToText(article.content),
+    ...(article.key_takeaways ?? []),
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+export default function ArchiveView({
+  onArticleSelect,
+  autoFocusSearch = false,
+  onSearchFocused,
+}: ArchiveViewProps) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadArticles();
   }, []);
+
+  useEffect(() => {
+    if (!autoFocusSearch) return;
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+      onSearchFocused?.();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [autoFocusSearch, onSearchFocused]);
 
   const loadArticles = async () => {
     try {
@@ -29,13 +59,12 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
       if (error) throw error;
 
       setArticles(data || []);
-      
-      // Extract unique categories
+
       const uniqueCategories = [...new Set((data || [])
-        .map(article => article.category)
-        .filter(Boolean)
+        .map((article) => article.category)
+        .filter(Boolean),
       )] as string[];
-      
+
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Error loading articles:', error);
@@ -44,138 +73,168 @@ export default function ArchiveView({ onArticleSelect }: ArchiveViewProps) {
     }
   };
 
-  const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         article.subtitle?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const trimmedSearch = searchTerm.trim();
 
-  // Group articles by category
-  const groupedArticles = categories.reduce((acc, category) => {
-    acc[category] = filteredArticles.filter(article => article.category === category);
-    return acc;
-  }, {} as Record<string, Article[]>);
+  const filteredArticles = useMemo(() => {
+    return articles.filter((article) => {
+      const matchesSearchField = matchesQuery(articleSearchText(article), trimmedSearch);
+      const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory;
+      return matchesSearchField && matchesCategory;
+    });
+  }, [articles, trimmedSearch, selectedCategory]);
+
+  const showFeaturedLead = !trimmedSearch && selectedCategory === 'all' && filteredArticles.length > 0;
+  const featuredArticle = showFeaturedLead ? filteredArticles[0] : null;
+  const listArticles = showFeaturedLead ? filteredArticles.slice(1) : filteredArticles;
+
+  const handleSearchIconClick = () => {
+    searchInputRef.current?.focus();
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    searchInputRef.current?.focus();
+  };
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-12 text-center">
-        <div className="animate-pulse text-emerald-600">Loading archive...</div>
+      <div className="py-2">
+        <div className="app-card p-4 mb-5">
+          <ArticleCardSkeleton featured />
+        </div>
+        <div className="app-card px-3">
+          <ArticleCardSkeleton />
+          <ArticleCardSkeleton />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">Article Archive</h1>
-        <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-          Explore our collection of environmental insights and action guides
-        </p>
+    <div>
+      <p className="text-[15px] text-ink-muted leading-relaxed mb-5 -mt-1">
+        Every story we&apos;ve published — browse, search, and revisit.
+      </p>
 
-        {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search articles..."
-              className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            />
-          </div>
-
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+      <div className="space-y-3 mb-6">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={handleSearchIconClick}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted hover:text-forest transition-colors"
+            aria-label="Focus search"
           >
-            <option value="all">All Categories</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+            <Search className="h-4 w-4" />
+          </button>
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search stories, topics, categories..."
+            className="w-full pl-10 pr-10 py-3 text-[15px] text-ink placeholder:text-ink-muted/60 input-field !pl-10 !pr-10"
+            aria-label="Search archive stories"
+            enterKeyHint="search"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-forest transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('all')}
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+              selectedCategory === 'all'
+                ? 'bg-forest text-white shadow-soft'
+                : 'bg-sage-50/90 text-ink-soft border border-sage-200/70'
+            }`}
+          >
+            All
+          </button>
+          {categories.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => setSelectedCategory(category)}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                selectedCategory === category
+                  ? 'bg-forest text-white shadow-soft'
+                  : 'bg-sage-50/90 text-ink-soft border border-sage-200/70'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Articles */}
+      {trimmedSearch && (
+        <p className="text-xs text-ink-muted mb-4 -mt-2">
+          {filteredArticles.length} result{filteredArticles.length !== 1 ? 's' : ''} for &ldquo;{trimmedSearch}&rdquo;
+        </p>
+      )}
+
       {filteredArticles.length === 0 ? (
-        <div className="text-center py-12">
-          <Archive className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No articles found</h3>
-          <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-        </div>
-      ) : selectedCategory === 'all' ? (
-        // Show grouped by category when viewing all
-        <div className="space-y-8 sm:space-y-12">
-          {Object.entries(groupedArticles).map(([category, categoryArticles]) => (
-            categoryArticles.length > 0 && (
-              <div key={category}>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 pb-2 border-b border-emerald-100">
-                  {category}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {categoryArticles.map((article) => (
-                    <ArticleCard key={article.id} article={article} onSelect={onArticleSelect} />
-                  ))}
-                </div>
-              </div>
-            )
-          ))}
+        <div className="text-center py-12 app-card px-6">
+          <Archive className="w-12 h-12 text-sage-300 mx-auto mb-4" />
+          <h3 className="text-editorial-title text-lg mb-2">No stories found</h3>
+          <p className="text-[15px] text-ink-muted">Try a different search or category.</p>
+          {(trimmedSearch || selectedCategory !== 'all') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCategory('all');
+              }}
+              className="mt-4 text-sm font-semibold text-forest hover:text-canopy"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
-        // Show as grid when filtering by specific category
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {filteredArticles.map((article) => (
-            <ArticleCard key={article.id} article={article} onSelect={onArticleSelect} />
-          ))}
-        </div>
+        <>
+          {featuredArticle && (
+            <div className="app-card p-4 mb-5">
+              <ArticleCard
+                article={featuredArticle}
+                onSelect={onArticleSelect}
+                featured
+              />
+            </div>
+          )}
+
+          {listArticles.length > 0 && (
+            <section>
+              <h2 className="section-title px-1">
+                {trimmedSearch
+                  ? 'Matching stories'
+                  : selectedCategory === 'all'
+                    ? 'More stories'
+                    : selectedCategory}
+              </h2>
+              <div className="app-card px-3">
+                {listArticles.map((article) => (
+                  <ArticleCard
+                    key={article.id}
+                    article={article}
+                    onSelect={onArticleSelect}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
-    </div>
-  );
-}
-
-function ArticleCard({ article, onSelect }: { article: Article; onSelect: (article: Article) => void }) {
-  return (
-    <div
-      onClick={() => onSelect(article)}
-      className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
-    >
-      <div className="p-4 sm:p-6">
-        <div className="flex items-center space-x-2 text-xs text-gray-500 mb-2 sm:mb-3">
-          <Calendar className="w-3 h-3" />
-          <span>{new Date(article.published_date).toLocaleDateString()}</span>
-          <span>•</span>
-          <Clock className="w-3 h-3" />
-          <span>{article.reading_time} min</span>
-        </div>
-
-        {article.category && (
-          <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full mb-2 sm:mb-3">
-            {article.category}
-          </span>
-        )}
-
-        <h3 className="font-bold text-gray-900 text-base sm:text-lg leading-tight mb-2 group-hover:text-emerald-700 transition-colors">
-          {article.title}
-        </h3>
-
-        {article.subtitle && (
-          <p className="text-gray-600 text-sm leading-relaxed line-clamp-3">
-            {article.subtitle}
-          </p>
-        )}
-      </div>
-
-      <div className="px-4 sm:px-6 pb-4">
-        <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium transition-colors">
-          Read article →
-        </button>
-      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, Clock, Edit, Trash2, Send, X } from 'lucide-react';
+import { FileText, Calendar, Clock, Trash2, Send, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { Article } from '../types';
@@ -12,7 +12,6 @@ interface WriterPanelProps {
 export default function WriterPanel({ onClose, userId }: WriterPanelProps) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
   useEffect(() => {
     loadArticles();

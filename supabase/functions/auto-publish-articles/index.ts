@@ -2,25 +2,41 @@
 // Runs daily at midnight CST to publish scheduled articles
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { writeAuditLog } from '../_shared/auditLog.ts'
+import { createServiceClient } from '../_shared/auth.ts'
+import { hasValidCronSecret } from '../_shared/requestGuards.ts'
+import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
+import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const ENDPOINT = 'auto-publish-articles'
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsHeaders = getCorsHeaders(req)
+  const preflight = handleCorsPreflight(req)
+  if (preflight) return preflight
+
+  const ip = getClientIp(req)
 
   try {
-    // Create Supabase client with admin privileges
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const expectedSecret = Deno.env.get('AUTO_PUBLISH_SECRET')
+    const providedSecret = req.headers.get('x-cron-secret')
+    if (!hasValidCronSecret(providedSecret, expectedSecret)) {
+      logSecurityEvent({
+        endpoint: ENDPOINT,
+        result: 'blocked',
+        reason: 'invalid_cron_secret',
+        ip,
+      })
+      return new Response(
+        JSON.stringify({ success: false, error: 'Forbidden' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403,
+        }
+      )
+    }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabase = createServiceClient()
 
     // Get today's date in CST (China Standard Time / UTC+8)
     const now = new Date()
@@ -30,73 +46,54 @@ serve(async (req) => {
 
     console.log(`Running auto-publish for date: ${todayCST}`)
 
-    // Find articles that should be published today
-    const { data: articlesToPublish, error: fetchError } = await supabase
+    // Atomic publish: one UPDATE avoids fetch-then-update races when cron overlaps.
+    const { data: publishedArticles, error: updateError } = await supabase
       .from('articles')
-      .select('id, title, scheduled_publish_date')
+      .update({
+        is_published: true,
+        status: 'published',
+        published_date: todayCST,
+        updated_at: new Date().toISOString(),
+      })
       .eq('auto_publish', true)
       .eq('is_published', false)
       .eq('status', 'approved')
       .eq('scheduled_publish_date', todayCST)
+      .select('id, title')
 
-    if (fetchError) {
-      console.error('Error fetching articles:', fetchError)
-      throw fetchError
+    if (updateError) {
+      console.error('Error publishing articles:', updateError)
+      throw updateError
     }
 
-    if (!articlesToPublish || articlesToPublish.length === 0) {
+    const results = (publishedArticles ?? []).map((article) => ({
+      id: article.id,
+      title: article.title,
+      success: true,
+    }))
+
+    if (results.length === 0) {
       console.log('No articles to publish today')
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'No articles scheduled for today',
-          date: todayCST,
-          published_count: 0
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      )
+    } else {
+      console.log(`Published ${results.length} article(s):`, results)
     }
 
-    console.log(`Found ${articlesToPublish.length} articles to publish:`, articlesToPublish)
+    const successCount = results.length
+    const failCount = 0
 
-    // Publish each article
-    const results = []
-    for (const article of articlesToPublish) {
-      const { data, error: updateError } = await supabase
-        .from('articles')
-        .update({
-          is_published: true,
-          status: 'published',
-          published_date: todayCST,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', article.id)
-        .select()
-        .single()
+    await writeAuditLog(supabase, {
+      action: 'auto_publish_articles',
+      ip,
+      metadata: { date: todayCST, successCount, failCount },
+    })
 
-      if (updateError) {
-        console.error(`Error publishing article ${article.id}:`, updateError)
-        results.push({
-          id: article.id,
-          title: article.title,
-          success: false,
-          error: updateError.message
-        })
-      } else {
-        console.log(`Successfully published article: ${article.title}`)
-        results.push({
-          id: article.id,
-          title: article.title,
-          success: true
-        })
-      }
-    }
-
-    const successCount = results.filter(r => r.success).length
-    const failCount = results.filter(r => !r.success).length
+    logSecurityEvent({
+      endpoint: ENDPOINT,
+      result: 'allowed',
+      reason: 'publish_complete',
+      ip,
+      metadata: { successCount, failCount },
+    })
 
     return new Response(
       JSON.stringify({
@@ -118,7 +115,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: 'Auto-publish failed'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

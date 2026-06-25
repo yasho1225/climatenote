@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NotebookPen, BookOpen, Archive, Info, Calendar, Clock, StickyNote, Users, Heart, Flame } from 'lucide-react';
+import { sanitizeArticleHtml } from '../lib/htmlSanitizer';
 
 export default function DemoMode() {
   const [currentView, setCurrentView] = useState<'article' | 'notebook' | 'archive' | 'about'>('article');
@@ -190,7 +191,7 @@ export default function DemoMode() {
             {/* Article Content */}
             <div className="prose prose-lg max-w-none mb-12">
               <div 
-                dangerouslySetInnerHTML={{ __html: demoArticle.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeArticleHtml(demoArticle.content) }}
                 className="text-gray-800 leading-relaxed"
               />
             </div>

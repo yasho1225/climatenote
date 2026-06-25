@@ -3,12 +3,16 @@
 // then applies research-backed formulas to calculate environmental impact.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { writeAuditLog } from '../_shared/auditLog.ts'
+import { requireAuthenticatedUser, createServiceClient } from '../_shared/auth.ts'
+import { isValidNoteContent, isValidUuid } from '../_shared/requestGuards.ts'
+import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts'
+import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts'
+import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts'
+import { callGeminiGenerateContent } from '../_shared/gemini.ts'
+import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const ENDPOINT = 'classify-note-impact'
 
 // ─── RESEARCH-BACKED IMPACT FORMULAS ──────────────────────────────────────────
 // Sources: EPA 2024, IPCC 2023, Poore & Nemecek 2018, IEA 2024, Water Footprint Network
@@ -97,25 +101,15 @@ Rules:
 
 Classify this climate action note: "${noteContent}"`
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+  const raw = await callGeminiGenerateContent(
+    geminiKey,
+    prompt,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 200,
-        },
-      }),
-    }
+      temperature: 0.1,
+      maxOutputTokens: 400,
+    },
+    { jsonMode: true },
   )
-
-  if (!response.ok) throw new Error(`Gemini API error: ${response.status}`)
-
-  const data = await response.json()
-  const raw = data.candidates[0]?.content?.parts[0]?.text?.trim()
   if (!raw) throw new Error('Empty response from Gemini')
 
   // Strip markdown code fences if present
@@ -130,7 +124,7 @@ Classify this climate action note: "${noteContent}"`
 
 // ─── STEP 2: APPLY RESEARCH-BACKED FORMULA ────────────────────────────────────
 function calculateImpact(aiResult: any) {
-  const { category, action_type, quantity, unit, confidence } = aiResult
+  const { category, action_type, quantity, unit, confidence: _confidence } = aiResult
 
   // Build formula key based on action type
   let formulaKey = null
@@ -200,24 +194,67 @@ function calculateImpact(aiResult: any) {
 
 // ─── MAIN HANDLER ─────────────────────────────────────────────────────────────
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  const corsHeaders = getCorsHeaders(req)
+  const preflight = handleCorsPreflight(req)
+  if (preflight) return preflight
+
+  const ip = getClientIp(req)
 
   try {
-    const { note_id, note_content, user_id } = await req.json()
-    if (!note_id || !note_content || !user_id) {
-      return new Response(JSON.stringify({ error: 'Missing note_id, note_content, or user_id' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (!areAiEndpointsEnabled()) {
+      logSecurityEvent({ endpoint: ENDPOINT, result: 'blocked', reason: 'ai_disabled', ip })
+      return new Response(JSON.stringify({ error: 'AI classification is temporarily unavailable.' }), { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const auth = await requireAuthenticatedUser(req)
+    if (!auth.ok) {
+      logSecurityEvent({ endpoint: ENDPOINT, result: 'blocked', reason: auth.error, ip })
+      return new Response(JSON.stringify({ error: auth.error }), { status: auth.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const { user, userClient } = auth.ctx
+    const rateKey = await rateLimitKeyFromAuth(req, 'classify-note-impact')
+    const rate = checkRateLimit(rateKey ?? `classify-note-impact:${user.id}`, 15, 60_000)
+    if (rate.limited) {
+      logSecurityEvent({ endpoint: ENDPOINT, result: 'blocked', reason: 'rate_limit', user_id: user.id, ip })
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a minute.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const { note_id } = await req.json()
+    if (!note_id) {
+      return new Response(JSON.stringify({ error: 'Missing note_id' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    if (!isValidUuid(note_id)) {
+      return new Response(JSON.stringify({ error: 'Invalid note_id format' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiKey) throw new Error('GEMINI_API_KEY not set')
 
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: ownedNote, error: noteLookupError } = await userClient
+      .from('user_notes')
+      .select('id, user_id, content')
+      .eq('id', note_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (noteLookupError || !ownedNote) {
+      return new Response(JSON.stringify({ error: 'Forbidden: note does not belong to caller' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const note_content = ownedNote.content
+    if (!isValidNoteContent(note_content)) {
+      return new Response(JSON.stringify({ error: 'Invalid note content' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const supabase = createServiceClient()
 
     // Step 1: AI classifies the note
     let aiResult
     try {
       aiResult = await classifyWithAI(note_content, geminiKey)
-    } catch (err) {
+    } catch (_err) {
       // If AI fails, store as "other" with no impact
       aiResult = { category: 'other', action_type: 'general_action', quantity: null, unit: null, confidence: 0, reasoning: 'AI classification failed' }
     }
@@ -230,7 +267,7 @@ serve(async (req) => {
     // Step 3: Store impact in database
     const { error: insertError } = await supabase.from('note_impacts').upsert({
       note_id,
-      user_id,
+      user_id: user.id,
       action_category: aiResult.category,
       action_type: aiResult.action_type,
       confidence: aiResult.confidence,
@@ -250,7 +287,7 @@ serve(async (req) => {
     if (needsReview) {
       await supabase.from('impact_review_queue').upsert({
         note_id,
-        user_id,
+        user_id: user.id,
         note_content,
         ai_category: aiResult.category,
         ai_confidence: aiResult.confidence,
@@ -258,6 +295,21 @@ serve(async (req) => {
         status: 'pending',
       }, { onConflict: 'note_id' })
     }
+
+    await writeAuditLog(supabase, {
+      user_id: user.id,
+      action: 'classify_note_impact',
+      ip,
+      metadata: { note_id, needs_review: needsReview },
+    })
+
+    logSecurityEvent({
+      endpoint: ENDPOINT,
+      result: 'allowed',
+      reason: 'classified',
+      user_id: user.id,
+      ip,
+    })
 
     return new Response(JSON.stringify({
       success: true,
@@ -268,7 +320,13 @@ serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 })
 
   } catch (error) {
+    logSecurityEvent({
+      endpoint: ENDPOINT,
+      result: 'blocked',
+      reason: 'server_error',
+      ip,
+    })
     console.error('classify-note-impact error:', error)
-    return new Response(JSON.stringify({ success: false, error: error.message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 })
+    return new Response(JSON.stringify({ success: false, error: 'Classification failed' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 })
   }
 })

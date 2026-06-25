@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NotebookPen, BookOpen, Archive, LogOut, Flame, Info, Bell, Plus, FileEdit, CheckSquare, Menu, X, Target, BarChart2, Trophy, UserCircle } from 'lucide-react';
+import { NotebookPen, BookOpen, Archive, LogOut, Flame, Info, Bell, Plus, FileEdit, CheckSquare, Menu, Target, BarChart2, Trophy, UserCircle } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface HeaderProps {
@@ -160,7 +160,7 @@ export default function Header({ userProfile, currentView, onViewChange, onSignO
             <button
               onClick={onProfileSettings}
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Edit Profile"
+              title="Profile & Account"
             >
               <UserCircle className="w-4 h-4" />
             </button>
@@ -239,7 +239,7 @@ export default function Header({ userProfile, currentView, onViewChange, onSignO
                 className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 <UserCircle className="w-5 h-5" />
-                <span className="font-medium">Edit Profile</span>
+                <span className="font-medium">Profile &amp; Account</span>
               </button>
 
               <button

@@ -4,13 +4,16 @@ import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
 import NoteCardGenerator from './NoteCardGenerator';
+import { publicAuthorInitial, publicAuthorName } from '../lib/publicProfile';
+import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface NotebookViewProps {
   userProfile: UserProfile | null;
+  onWriteNote?: () => void;
 }
 
 interface NoteWithReactions extends UserNote {
-  user_profiles: { email: string };
+  user_profiles: { display_name: string | null; email: string | null; id: string };
   articles: { title: string; published_date: string };
   reaction_count: number;
   user_has_reacted: boolean;
@@ -18,15 +21,48 @@ interface NoteWithReactions extends UserNote {
 
 interface PopupNote {
   note: NoteWithReactions;
-  position: { x: number; y: number };
 }
 
-export default function NotebookView({ userProfile }: NotebookViewProps) {
+const TRENDING = [
+  {
+    icon: Footprints,
+    label: 'Walk to Work',
+    circle: 'bg-sage-100',
+    iconColor: 'text-forest',
+    keywords: ['walk', 'commute', 'bike', 'transport'],
+  },
+  {
+    icon: UtensilsCrossed,
+    label: 'Plant-based Meal',
+    circle: 'bg-terracotta-light',
+    iconColor: 'text-terracotta',
+    keywords: ['plant', 'meal', 'food', 'vegan', 'vegetarian'],
+  },
+  {
+    icon: MapPin,
+    label: 'Local Shop',
+    circle: 'bg-mist',
+    iconColor: 'text-sage-600',
+    keywords: ['local', 'shop', 'buy', 'store'],
+  },
+] as const;
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(diff / 3_600_000);
+  if (hours < 1) return 'Just now';
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export default function NotebookView({ userProfile, onWriteNote }: NotebookViewProps) {
   const [notes, setNotes] = useState<NoteWithReactions[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'mine'>('all');
   const [popupNote, setPopupNote] = useState<PopupNote | null>(null);
   const [shareNote, setShareNote] = useState<(UserNote & { article_title?: string }) | null>(null);
+  const [feedSearch, setFeedSearch] = useState('');
+  const [trendingFilter, setTrendingFilter] = useState<string | null>(null);
+  const { nextGeneration, isCurrent } = useRequestGuard();
 
   const handleReport = async (noteId: string) => {
     try {
@@ -48,67 +84,104 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
 
   const loadNotes = async () => {
     try {
-      // First get the notes with basic info
-      let notesQuery = supabase
+      const { data: notesData, error: notesError } = await supabase
         .from('user_notes')
         .select(`
           *,
-          user_profiles!inner(email),
+          user_profiles!inner(id, display_name, email),
           articles!inner(title, published_date)
         `)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (filter === 'mine' && userProfile) {
-        notesQuery = notesQuery.eq('user_id', userProfile.id);
-      }
-
-      const { data: notesData, error: notesError } = await notesQuery;
       if (notesError) throw notesError;
 
       if (!notesData) {
-        setNotes([]);
+        if (isCurrent(generation)) setNotes([]);
         return;
       }
 
-      // Get reaction counts and user reactions for each note
-      const noteIds = notesData.map(note => note.id);
-      
-      // Get reaction counts
-      const { data: reactionCounts, error: countError } = await supabase
-        .from('note_reactions')
-        .select('note_id')
-        .in('note_id', noteIds);
+      const noteIds = notesData.map((note) => note.id);
+      let reactionCounts: { note_id: string }[] = [];
+      let userReactions: { note_id: string }[] = [];
 
-      if (countError) throw countError;
-
-      // Get user's reactions if logged in
-      let userReactions: any[] = [];
-      if (userProfile) {
-        const { data: userReactionData, error: userReactionError } = await supabase
+      if (noteIds.length > 0) {
+        const { data: counts, error: countError } = await supabase
           .from('note_reactions')
           .select('note_id')
-          .in('note_id', noteIds)
-          .eq('user_id', userProfile.id);
+          .in('note_id', noteIds);
 
-        if (userReactionError) throw userReactionError;
-        userReactions = userReactionData || [];
+        if (countError) throw countError;
+        reactionCounts = counts || [];
+
+        if (userProfile) {
+          const { data: userReactionData, error: userReactionError } = await supabase
+            .from('note_reactions')
+            .select('note_id')
+            .in('note_id', noteIds)
+            .eq('user_id', userProfile.id);
+
+          if (userReactionError) throw userReactionError;
+          userReactions = userReactionData || [];
+        }
       }
 
-      // Combine data
-      const notesWithReactions: NoteWithReactions[] = notesData.map(note => ({
+      const notesWithReactions: NoteWithReactions[] = notesData.map((note) => ({
         ...note,
-        reaction_count: reactionCounts?.filter(r => r.note_id === note.id).length || 0,
-        user_has_reacted: userReactions.some(r => r.note_id === note.id)
+        reaction_count: reactionCounts?.filter((r) => r.note_id === note.id).length || 0,
+        user_has_reacted: userReactions.some((r) => r.note_id === note.id),
       }));
 
-      setNotes(notesWithReactions);
+      if (isCurrent(generation)) {
+        setNotes(notesWithReactions);
+      }
     } catch (error) {
       console.error('Error loading notes:', error);
+      if (isCurrent(generation)) {
+        showToast('Failed to load notes', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (isCurrent(generation)) {
+        setLoading(false);
+      }
     }
-  };
+  }, [userProfile, nextGeneration, isCurrent]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
+  const co2Display = useMemo(() => {
+    const kg = Math.round(notes.length * 1.2);
+    return kg.toLocaleString();
+  }, [notes.length]);
+
+  const visibleNotes = useMemo(() => {
+    const query = feedSearch.trim().toLowerCase();
+    const trending = trendingFilter
+      ? TRENDING.find((item) => item.label === trendingFilter)
+      : null;
+
+    return notes.filter((note) => {
+      const author = publicAuthorName(note.user_profiles).toLowerCase();
+      const content = note.content.toLowerCase();
+      const articleTitle = note.articles.title.toLowerCase();
+
+      if (query) {
+        const matchesQuery = author.includes(query) || content.includes(query) || articleTitle.includes(query);
+        if (!matchesQuery) return false;
+      }
+
+      if (trending) {
+        const matchesTrending = trending.keywords.some(
+          (keyword) => content.includes(keyword) || articleTitle.includes(keyword),
+        );
+        if (!matchesTrending) return false;
+      }
+
+      return true;
+    });
+  }, [notes, feedSearch, trendingFilter]);
 
   const handleEncourage = async (noteId: string, currentlyReacted: boolean) => {
     if (!userProfile) {
@@ -118,183 +191,222 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
 
     try {
       if (currentlyReacted) {
-        // Remove reaction
         const { error } = await supabase
           .from('note_reactions')
           .delete()
           .eq('note_id', noteId)
           .eq('user_id', userProfile.id);
-
         if (error) throw error;
       } else {
-        // Add reaction
-        const { error } = await supabase
-          .from('note_reactions')
-          .insert({
-            note_id: noteId,
-            user_id: userProfile.id,
-            reaction_type: 'encourage'
-          });
-
-        // Handle duplicate key constraint - reaction already exists
-        if (error && error.code !== '23505') {
-          throw error;
-        }
+        const { error } = await supabase.from('note_reactions').insert({
+          note_id: noteId,
+          user_id: userProfile.id,
+          reaction_type: 'encourage',
+        });
+        if (error && error.code !== '23505') throw error;
       }
 
-      // Update local state
-      setNotes(prevNotes => 
-        prevNotes.map(note => 
-          note.id === noteId 
-            ? {
-                ...note,
-                reaction_count: currentlyReacted 
-                  ? note.reaction_count - 1 
-                  : note.reaction_count + 1,
-                user_has_reacted: !currentlyReacted
-              }
-            : note
-        )
+      const updateNote = (note: NoteWithReactions) =>
+        note.id === noteId
+          ? {
+              ...note,
+              reaction_count: currentlyReacted ? note.reaction_count - 1 : note.reaction_count + 1,
+              user_has_reacted: !currentlyReacted,
+            }
+          : note;
+
+      setNotes((prev) => prev.map(updateNote));
+      setPopupNote((prev) =>
+        prev && prev.note.id === noteId ? { note: updateNote(prev.note) } : prev,
       );
 
       if (!currentlyReacted) {
-        showToast('Encouragement sent! 💚', 'success');
+        showToast('Encouragement sent!', 'success');
       }
-    } catch (error: any) {
+    } catch {
       showToast('Failed to update reaction', 'error');
-      console.error('Error updating reaction:', error);
     }
-  };
-
-  const getCircleColor = (email: string) => {
-    const colors = [
-      'bg-pink-300', 'bg-rose-300', 'bg-orange-300', 'bg-amber-300',
-      'bg-yellow-300', 'bg-lime-300', 'bg-emerald-300', 'bg-teal-300',
-      'bg-cyan-300', 'bg-sky-300', 'bg-blue-300', 'bg-violet-300'
-    ];
-    const hash = email.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
-  const handleCircleClick = (note: NoteWithReactions, event: React.MouseEvent) => {
-    const rect = (event.target as HTMLElement).getBoundingClientRect();
-    setPopupNote({
-      note,
-      position: {
-        x: rect.left + rect.width / 2,
-        y: rect.top
-      }
-    });
-  };
-
-  const closePopup = () => {
-    setPopupNote(null);
   };
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 text-center">
-        <div className="animate-pulse text-emerald-600">Loading community notebook...</div>
+      <div className="app-screen py-16 text-center">
+        <div className="animate-pulse text-ink-muted text-sm font-medium">Loading community...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">Community Notebook</h1>
-        <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-          See how others are turning climate awareness into daily action
-        </p>
-
-        {/* Filter Tabs */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          <button
-            onClick={() => setFilter('all')}
-            className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
-              filter === 'all'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>All Notes</span>
-          </button>
-          <button
-            onClick={() => setFilter('mine')}
-            className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
-              filter === 'mine'
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>My Notes</span>
-          </button>
+    <div className="app-screen">
+      {/* Hero */}
+      <div className="community-card p-6 mb-5">
+        <h1 className="community-hero-title mb-3">Community Notebook</h1>
+        <div className="community-badge">
+          <Leaf className="w-3.5 h-3.5 text-sage-600 shrink-0" strokeWidth={2.5} />
+          <span>{co2Display}kg CO₂ saved today</span>
         </div>
       </div>
 
-      {/* Cute Notebook */}
-      {notes.length === 0 ? (
-        <div className="text-center py-12">
-          <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {filter === 'mine' ? 'No notes yet' : 'No community notes yet'}
-          </h3>
-          <p className="text-gray-600">
-            {filter === 'mine'
-              ? 'Read today\'s article and write your first action note!'
-              : 'Be the first to share your environmental action!'}
-          </p>
+      {/* Trending Actions */}
+      <section className="mb-5">
+        <h2 className="community-section-title mb-3">Trending Actions</h2>
+        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide -mx-0.5 px-0.5">
+          {TRENDING.map(({ icon: Icon, label, circle, iconColor }) => {
+            const active = trendingFilter === label;
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setTrendingFilter(active ? null : label)}
+                className={`community-card shrink-0 w-[7.5rem] p-4 flex flex-col items-center gap-3 transition-colors ${
+                  active ? 'ring-2 ring-forest/30' : 'hover:bg-mist/40'
+                }`}
+                aria-pressed={active}
+              >
+                <div className={`w-[3.25rem] h-[3.25rem] rounded-full ${circle} flex items-center justify-center`}>
+                  <Icon className={`w-[1.35rem] h-[1.35rem] ${iconColor}`} strokeWidth={2} />
+                </div>
+                <span className="text-xs font-bold text-ink text-center leading-snug">{label}</span>
+              </button>
+            );
+          })}
         </div>
-      ) : (
-        <div className="relative">
-          {/* Notebook Background */}
-          <div
-            className="bg-gradient-to-br from-pink-50 via-white to-blue-50 border-4 border-white rounded-3xl p-12 min-h-96 relative overflow-hidden shadow-xl"
-          >
-            {/* Decorative corner stickers */}
-            <div className="absolute top-2 left-2 w-8 h-8 bg-yellow-200 rounded-full opacity-40"></div>
-            <div className="absolute top-2 right-2 w-6 h-6 bg-pink-200 rounded-full opacity-40"></div>
-            <div className="absolute bottom-2 left-2 w-6 h-6 bg-blue-200 rounded-full opacity-40"></div>
-            <div className="absolute bottom-2 right-2 w-8 h-8 bg-green-200 rounded-full opacity-40"></div>
+      </section>
 
-            {/* Title with cute styling */}
-            <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent mb-1">
-                🌸 Climate Actions 🌸
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-500">Click on any circle to see what others are doing!</p>
-            </div>
+      {/* Community Feed */}
+      <section className="relative">
+        <h2 className="community-section-title mb-3">Community Feed</h2>
 
-            {/* User circles in grid layout */}
-            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3 sm:gap-4 justify-items-center items-center py-6 sm:py-8 px-2 sm:px-4">
-              {notes.map((note) => {
-                return (
-                  <button
-                    key={note.id}
-                    onClick={(e) => handleCircleClick(note, e)}
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full ${getCircleColor(note.user_profiles.email)}
-                      hover:scale-125 transition-all duration-300 shadow-lg hover:shadow-2xl
-                      border-3 border-white flex items-center justify-center text-white font-bold text-sm sm:text-base
-                      hover:rotate-12 transform`}
-                  >
-                    {note.user_profiles.email.charAt(0).toUpperCase()}
-                  </button>
-                );
-              })}
-            </div>
+        <div className="relative mb-4">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted pointer-events-none" />
+          <input
+            type="search"
+            value={feedSearch}
+            onChange={(e) => setFeedSearch(e.target.value)}
+            placeholder="Search community posts..."
+            className="w-full pl-10 pr-10 py-2.5 text-sm text-ink placeholder:text-ink-muted/60 input-field !pl-10 !pr-10"
+            aria-label="Search community feed"
+          />
+          {feedSearch && (
+            <button
+              type="button"
+              onClick={() => setFeedSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-forest"
+              aria-label="Clear community search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
 
-            {/* Cute footer message */}
-            <div className="text-center mt-6 text-sm text-gray-500">
-              ✨ {notes.length} {notes.length === 1 ? 'person is' : 'people are'} making a difference! ✨
-            </div>
+        {(feedSearch || trendingFilter) && (
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-ink-muted">
+              {visibleNotes.length} post{visibleNotes.length !== 1 ? 's' : ''}
+              {trendingFilter ? ` · ${trendingFilter}` : ''}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setFeedSearch('');
+                setTrendingFilter(null);
+              }}
+              className="text-xs font-semibold text-forest"
+            >
+              Clear
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Note Card Generator Modal */}
+        {notes.length === 0 ? (
+          <div className="community-card p-8 text-center">
+            <p className="text-ink font-semibold text-sm">No posts yet</p>
+            <p className="text-ink-muted text-sm mt-1">Be the first to share your climate action.</p>
+            {onWriteNote && (
+              <button
+                type="button"
+                onClick={onWriteNote}
+                className="mt-4 text-sm font-semibold text-forest hover:text-canopy"
+              >
+                Write today&apos;s note
+              </button>
+            )}
+          </div>
+        ) : visibleNotes.length === 0 ? (
+          <div className="community-card p-8 text-center">
+            <p className="text-ink font-semibold text-sm">No matching posts</p>
+            <p className="text-ink-muted text-sm mt-1">Try a different search or trending filter.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setFeedSearch('');
+                setTrendingFilter(null);
+              }}
+              className="mt-4 text-sm font-semibold text-forest"
+            >
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Featured post — matches wireframe single-card layout */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPopupNote({ note: visibleNotes[0] })}
+                className="community-card w-full p-5 text-left pb-8"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-full bg-sage-100 flex items-center justify-center text-canopy font-bold text-sm shrink-0">
+                    {publicAuthorInitial(visibleNotes[0].user_profiles)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-ink text-[15px] leading-tight">
+                      {publicAuthorName(visibleNotes[0].user_profiles)}
+                    </p>
+                    <p className="text-xs text-ink-muted font-medium mt-0.5">
+                      {timeAgo(visibleNotes[0].created_at)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[15px] text-ink-soft leading-[1.55]">{visibleNotes[0].content}</p>
+              </button>
+
+              {onWriteNote && (
+                <button
+                  type="button"
+                  onClick={onWriteNote}
+                  className="community-fab absolute -bottom-3 right-3 z-10"
+                  aria-label="Write a note"
+                >
+                  <Pencil className="w-6 h-6" strokeWidth={2} />
+                </button>
+              )}
+            </div>
+
+            {visibleNotes.slice(1).map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                onClick={() => setPopupNote({ note })}
+                className="community-card w-full p-5 text-left"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-canopy font-bold text-sm shrink-0">
+                    {publicAuthorInitial(note.user_profiles)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-ink text-sm">{publicAuthorName(note.user_profiles)}</p>
+                    <p className="text-xs text-ink-muted">{timeAgo(note.created_at)}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-ink-soft leading-relaxed line-clamp-4">{note.content}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
       {shareNote && userProfile && (
         <NoteCardGenerator
           note={shareNote}
@@ -303,36 +415,26 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
         />
       )}
 
-      {/* Popup Modal */}
       {popupNote && (
         <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={closePopup}
-          ></div>
-          
-          {/* Popup */}
           <div
-            className="fixed z-50 bg-gradient-to-br from-pink-50 to-blue-50 rounded-2xl shadow-2xl p-4 sm:p-6 max-w-md w-72 sm:w-80 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:translate-y-0 border-4 border-white"
-            style={{
-              left: window.innerWidth < 640 ? '50%' : `${popupNote.position.x}px`,
-              top: window.innerWidth < 640 ? '50%' : `${popupNote.position.y - 10}px`,
-            }}
-          >
-            {/* Close button */}
+            className="fixed inset-0 bg-forest/35 z-40"
+            onClick={() => setPopupNote(null)}
+            aria-hidden
+          />
+          <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-sm community-card p-5">
             <button
-              onClick={closePopup}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors hover:rotate-90 transform duration-200"
+              type="button"
+              onClick={() => setPopupNote(null)}
+              className="absolute top-3 right-3 text-ink-muted hover:text-ink transition-colors"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* User info */}
-            <div className="flex items-center space-x-3 mb-4">
-              <div className={`w-12 h-12 rounded-full ${getCircleColor(popupNote.note.user_profiles.email)}
-                flex items-center justify-center text-white font-bold text-lg shadow-md`}>
-                {popupNote.note.user_profiles.email.charAt(0).toUpperCase()}
+            <div className="flex items-center gap-3 mb-4 pr-6">
+              <div className="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center text-canopy font-bold">
+                {publicAuthorInitial(popupNote.note.user_profiles)}
               </div>
               <div>
                 <p className="font-bold text-gray-900">
@@ -340,46 +442,38 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
                 </p>
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <Calendar className="w-3 h-3" />
-                  <span>{new Date(popupNote.note.created_at).toLocaleDateString()}</span>
+                  <span>{timeAgo(popupNote.note.created_at)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Article reference */}
-            <div className="mb-3 bg-white/60 rounded-lg p-3">
-              <h4 className="text-xs font-semibold text-emerald-600 mb-1">
-                📰 Action from:
-              </h4>
-              <p className="text-sm text-gray-700">{popupNote.note.articles.title}</p>
-            </div>
-
-            {/* Note content */}
-            <div className="mb-4 bg-white/60 rounded-lg p-3">
-              <p className="text-gray-800 leading-relaxed text-sm">
-                {popupNote.note.content}
+            <div className="mb-3 bg-mist rounded-2xl p-3">
+              <p className="text-[10px] font-bold text-sage-600 uppercase tracking-wide mb-1">
+                Action from
               </p>
+              <p className="text-sm text-ink font-medium">{popupNote.note.articles.title}</p>
             </div>
 
-            {/* Action buttons */}
+            <p className="text-[15px] text-ink-soft leading-relaxed mb-4">{popupNote.note.content}</p>
+
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <button
+                type="button"
                 onClick={() => handleEncourage(popupNote.note.id, popupNote.note.user_has_reacted)}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-full text-sm font-semibold transition-all transform hover:scale-105 shadow-md ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-colors ${
                   popupNote.note.user_has_reacted
-                    ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gradient-to-r hover:from-pink-400 hover:to-rose-400 hover:text-white'
+                    ? 'bg-sage-500 text-white'
+                    : 'bg-sage-100 text-forest hover:bg-sage-200'
                 }`}
               >
                 <Heart className={`w-4 h-4 ${popupNote.note.user_has_reacted ? 'fill-current' : ''}`} />
-                <span>
-                  {popupNote.note.user_has_reacted ? 'Encouraged!' : 'Encourage'}
-                  {popupNote.note.reaction_count > 0 && ` (${popupNote.note.reaction_count})`}
-                </span>
+                {popupNote.note.user_has_reacted ? 'Encouraged' : 'Encourage'}
+                {popupNote.note.reaction_count > 0 && ` (${popupNote.note.reaction_count})`}
               </button>
 
-              {/* Share button — only for the user's own notes */}
               {userProfile && popupNote.note.user_id === userProfile.id && (
                 <button
+                  type="button"
                   onClick={() => {
                     setShareNote({
                       id: popupNote.note.id,
@@ -389,9 +483,9 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
                       created_at: popupNote.note.created_at,
                       article_title: popupNote.note.articles.title,
                     });
-                    closePopup();
+                    setPopupNote(null);
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-all shadow-md"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold border border-sage-200 text-forest hover:bg-sage-50"
                 >
                   <Share2 className="w-4 h-4" />
                   Share

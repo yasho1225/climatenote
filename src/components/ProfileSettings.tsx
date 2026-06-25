@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Flame, BookOpen, Calendar, User, Check, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Flame, BookOpen, Calendar, User, Check, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
 import { showToast } from './ui/Toast';
@@ -8,26 +8,27 @@ interface ProfileSettingsProps {
   userProfile: UserProfile;
   onClose: () => void;
   onProfileUpdate: (profile: UserProfile) => void;
-  onAccountDeleted?: () => void;
+  onRequestDeleteAccount: () => void;
 }
 
-export default function ProfileSettings({ userProfile, onClose, onProfileUpdate, onAccountDeleted }: ProfileSettingsProps) {
+export default function ProfileSettings({
+  userProfile,
+  onClose,
+  onProfileUpdate,
+  onRequestDeleteAccount,
+}: ProfileSettingsProps) {
   const [displayName, setDisplayName] = useState(userProfile.display_name || '');
   const [saving, setSaving] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [deleting, setDeleting] = useState(false);
 
   const currentName = userProfile.display_name || userProfile.email?.split('@')[0] || 'You';
 
-  // Avatar color — consistent with LeaderboardView
   const avatarPalette = [
     { bg: 'bg-emerald-500', text: 'text-white' },
-    { bg: 'bg-blue-500',    text: 'text-white' },
-    { bg: 'bg-purple-500',  text: 'text-white' },
-    { bg: 'bg-orange-500',  text: 'text-white' },
-    { bg: 'bg-pink-500',    text: 'text-white' },
-    { bg: 'bg-teal-500',    text: 'text-white' },
+    { bg: 'bg-blue-500', text: 'text-white' },
+    { bg: 'bg-purple-500', text: 'text-white' },
+    { bg: 'bg-orange-500', text: 'text-white' },
+    { bg: 'bg-pink-500', text: 'text-white' },
+    { bg: 'bg-teal-500', text: 'text-white' },
   ];
   const avatarColor = (() => {
     let hash = 0;
@@ -68,131 +69,19 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
       onProfileUpdate(data);
       showToast('Profile updated!', 'success');
       onClose();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to update profile', 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      showToast(message, 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') return;
-
-    setDeleting(true);
-    try {
-      // Call the Supabase edge function to permanently delete the account
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const { error } = await supabase.functions.invoke('delete-account', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-
-      showToast('Your account has been permanently deleted.', 'success');
-
-      // Sign the user out and navigate to landing page
-      await supabase.auth.signOut();
-      if (onAccountDeleted) {
-        onAccountDeleted();
-      }
-    } catch (err: any) {
-      console.error('Account deletion error:', err);
-      showToast(err.message || 'Failed to delete account. Please try again.', 'error');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // Delete confirmation dialog
-  if (showDeleteConfirm) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-red-100 bg-red-50">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <h3 className="font-bold text-red-900">Delete Account</h3>
-            </div>
-            <button
-              onClick={() => {
-                setShowDeleteConfirm(false);
-                setDeleteConfirmText('');
-              }}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-red-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="px-5 py-5 space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm text-gray-700 font-medium">
-                This action is permanent and cannot be undone.
-              </p>
-              <p className="text-sm text-gray-600">
-                Deleting your account will permanently remove:
-              </p>
-              <ul className="text-sm text-gray-600 space-y-1 ml-4 list-disc">
-                <li>Your profile and display name</li>
-                <li>All your climate notes</li>
-                <li>Your streak and progress data</li>
-                <li>Your goals and impact data</li>
-              </ul>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Type <span className="font-bold text-red-600">DELETE</span> to confirm
-              </label>
-              <input
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="Type DELETE here"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="px-5 pb-5 space-y-2">
-            <button
-              onClick={handleDeleteAccount}
-              disabled={deleting || deleteConfirmText !== 'DELETE'}
-              className="w-full flex items-center justify-center gap-2 bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {deleting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-              {deleting ? 'Deleting Account...' : 'Permanently Delete Account'}
-            </button>
-            <button
-              onClick={() => {
-                setShowDeleteConfirm(false);
-                setDeleteConfirmText('');
-              }}
-              className="w-full py-3 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-gray-900">Your Profile</h3>
+          <h3 className="font-bold text-gray-900">Profile &amp; Account</h3>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
@@ -202,7 +91,6 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
         </div>
 
         <div className="px-5 py-5 space-y-5">
-          {/* Avatar */}
           <div className="flex flex-col items-center gap-2">
             <div
               className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold ${avatarColor.bg} ${avatarColor.text}`}
@@ -212,32 +100,24 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
             <p className="text-xs text-gray-400">{userProfile.email}</p>
           </div>
 
-          {/* Stats Row */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-orange-50 rounded-xl p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Flame className="w-4 h-4 text-orange-500" />
-              </div>
+              <Flame className="w-4 h-4 text-orange-500 mx-auto mb-1" />
               <p className="font-bold text-lg text-orange-700">{userProfile.streak}</p>
               <p className="text-xs text-orange-500">day streak</p>
             </div>
             <div className="bg-emerald-50 rounded-xl p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <BookOpen className="w-4 h-4 text-emerald-500" />
-              </div>
+              <BookOpen className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
               <p className="font-bold text-lg text-emerald-700">{userProfile.total_notes}</p>
               <p className="text-xs text-emerald-500">notes written</p>
             </div>
             <div className="bg-blue-50 rounded-xl p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Calendar className="w-4 h-4 text-blue-500" />
-              </div>
+              <Calendar className="w-4 h-4 text-blue-500 mx-auto mb-1" />
               <p className="font-bold text-xs text-blue-700 leading-tight">{memberSince}</p>
               <p className="text-xs text-blue-500 mt-0.5">member since</p>
             </div>
           </div>
 
-          {/* Display Name Field */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Display name
@@ -257,13 +137,9 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
                 {displayName.length}/30
               </span>
             </div>
-            <p className="text-xs text-gray-400 mt-1">
-              This is the name others see — keep it friendly!
-            </p>
           </div>
         </div>
 
-        {/* Save Button */}
         <div className="px-5 pb-5 space-y-3">
           <button
             onClick={handleSave}
@@ -278,14 +154,13 @@ export default function ProfileSettings({ userProfile, onClose, onProfileUpdate,
             {saving ? 'Saving…' : 'Save Profile'}
           </button>
 
-          {/* Delete Account */}
           <div className="pt-3 border-t border-gray-100">
             <button
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={onRequestDeleteAccount}
               className="w-full flex items-center justify-center gap-2 text-red-600 hover:bg-red-50 py-2.5 rounded-xl text-sm font-medium transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-              Delete Account
+              Delete account…
             </button>
           </div>
         </div>
