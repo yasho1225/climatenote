@@ -192,7 +192,7 @@ export default function ImpactDashboard({ userProfile }: ImpactDashboardProps) {
       <div className="text-center space-y-2">
         <div className="inline-flex items-center space-x-2 bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-medium">
           <Globe className="w-4 h-4" />
-          <span>Real Environmental Impact</span>
+          <span>Estimated Environmental Impact</span>
         </div>
         <h2 className="text-3xl font-bold text-gray-900">Together We're Making a Difference</h2>
         <p className="text-gray-500">Every note you write represents a real action for the planet</p>

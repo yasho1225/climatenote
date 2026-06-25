@@ -83,9 +83,9 @@ These services have their own privacy policies and terms of service.
 ## Contact Us
 
 If you have questions about this Privacy Policy, please contact us at:
-- **Email**: support@theclimatenote.app
+- **Email**: support@theclimatenote.com
 
-For data deletion requests or to exercise your privacy rights, email us at: privacy@theclimatenote.app
+For data deletion requests or to exercise your privacy rights, email us at: privacy@theclimatenote.com
 
 ---
 

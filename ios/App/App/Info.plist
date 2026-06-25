@@ -28,7 +28,16 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.theclimatenote.app</string>
+			</array>
+		</dict>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -45,8 +54,6 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>The Climate Note would like to send you daily climate articles and streak reminders to help you build sustainable habits.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

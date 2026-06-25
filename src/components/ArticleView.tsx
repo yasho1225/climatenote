@@ -327,6 +327,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate }: A
             </div>
 
             {/* 3 AI suggestions */}
+            <p className="text-xs text-gray-400">AI-suggested actions based on this article</p>
             <div className="space-y-2">
               {suggestions.map((s, i) => {
                 const isSelected = selectedSuggestion === s && !showCustom;

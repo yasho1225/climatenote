@@ -30,13 +30,12 @@ export class CapacitorNotifications {
 
   static async setupNotificationListeners() {
     // Handle notification received
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Push notification received: ', notification);
+    PushNotifications.addListener('pushNotificationReceived', (_notification) => {
+      // handled by system
     });
 
     // Handle notification action performed
     PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-      console.log('Push notification action performed', notification.actionId, notification.inputValue);
       // Navigate to the app when notification is tapped
       if (notification.actionId === 'tap') {
         // You can add navigation logic here
@@ -45,8 +44,7 @@ export class CapacitorNotifications {
     });
 
     // Handle local notification action
-    LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
-      console.log('Local notification action performed', notification);
+    LocalNotifications.addListener('localNotificationActionPerformed', (_notification) => {
       window.location.href = '/';
     });
 
@@ -104,7 +102,6 @@ export class CapacitorApp {
     }
 
     App.addListener('appStateChange', ({ isActive }) => {
-      console.log('App state changed. Is active?', isActive);
       
       if (isActive) {
         // App became active - you can refresh data here
@@ -113,7 +110,6 @@ export class CapacitorApp {
     });
 
     App.addListener('appUrlOpen', async (event) => {
-      console.log('App opened with URL:', event.url);
 
       // Handle OAuth callback deep links
       // The URL will contain access_token / refresh_token after OAuth sign-in

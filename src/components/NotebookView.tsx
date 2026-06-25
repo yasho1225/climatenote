@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Heart, Calendar, X, Share2 } from 'lucide-react';
+import { BookOpen, Users, Heart, Calendar, X, Share2, Flag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
@@ -27,6 +27,20 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
   const [popupNote, setPopupNote] = useState<PopupNote | null>(null);
   const [shareNote, setShareNote] = useState<(UserNote & { article_title?: string }) | null>(null);
+
+  const handleReport = async (noteId: string) => {
+    try {
+      await supabase.from('content_reports').insert({
+        note_id: noteId,
+        reporter_id: userProfile?.id ?? null,
+        reported_at: new Date().toISOString(),
+      });
+    } catch {
+      // report stored best-effort; don't surface errors to user
+    }
+    showToast('Thank you. We will review this content within 24 hours.', 'success');
+    setPopupNote(null);
+  };
 
   useEffect(() => {
     loadNotes();
@@ -322,7 +336,7 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
               </div>
               <div>
                 <p className="font-bold text-gray-900">
-                  {popupNote.note.user_profiles.email.split('@')[0]}
+                  Climate Champion
                 </p>
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <Calendar className="w-3 h-3" />
@@ -381,6 +395,17 @@ export default function NotebookView({ userProfile }: NotebookViewProps) {
                 >
                   <Share2 className="w-4 h-4" />
                   Share
+                </button>
+              )}
+
+              {/* Report button — only for other users' notes */}
+              {userProfile && popupNote.note.user_id !== userProfile.id && (
+                <button
+                  onClick={() => handleReport(popupNote.note.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-500 transition-all shadow-md"
+                >
+                  <Flag className="w-4 h-4" />
+                  Report
                 </button>
               )}
             </div>

@@ -28,7 +28,6 @@ export default function LandingPage() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  console.log('LandingPage rendering...');
 
   const handleSocialAuth = async (provider: 'google' | 'apple') => {
     setLoading(true);
