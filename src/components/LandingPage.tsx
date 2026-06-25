@@ -126,6 +126,11 @@ export default function LandingPage() {
         return;
       }
 
+      if (provider === 'apple' && isNative) {
+        showToast('Sign in with Apple requires the native iOS flow. Please try again.', 'error');
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {

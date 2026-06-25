@@ -32,7 +32,8 @@ export async function openInAppOAuth(oauthUrl: string): Promise<void> {
 
   await Browser.open({
     url: oauthUrl,
-    presentationStyle: 'fullscreen',
+    presentationStyle: 'popover',
+    toolbarColor: '#eef2ec',
   });
 }
 

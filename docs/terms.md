@@ -52,7 +52,7 @@ You agree NOT to post content that:
 - Violates any applicable laws or regulations
 
 ### Content Moderation
-We reserve the right to remove any content that violates these Terms or is otherwise objectionable, without prior notice.
+We reserve the right to remove any content that violates these Terms or is otherwise objectionable, without prior notice. You can report community notes in the app (Notebook → Report). We review reports within 24–48 hours and may remove content or restrict accounts that violate these Terms.
 
 ## Acceptable Use
 
@@ -149,7 +149,7 @@ You agree to indemnify and hold harmless The Climate Note, its affiliates, and t
 ## Termination
 
 ### Your Rights
-You may stop using the App at any time and delete your account through the App settings.
+You may stop using the App at any time and delete your account from the **Profile** tab → **Delete account**.
 
 ### Our Rights
 We may suspend or terminate your access to the App at any time, with or without notice, for:

@@ -54,6 +54,6 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>The Climate Note sends optional daily reminders so you can read today's story and log your climate action.</string>
+	<string>The Climate Note can schedule optional local daily reminders so you can read today's story and log your climate action.</string>
 </dict>
 </plist>

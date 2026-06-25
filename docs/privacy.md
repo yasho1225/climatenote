@@ -62,7 +62,7 @@ To exercise these rights, contact us at privacy@theclimatenote.com
 
 ## Data Retention
 
-We retain your information as long as your account is active or as needed to provide services. You can delete your account at any time through the app settings.
+We retain your information as long as your account is active or as needed to provide services. You can delete your account at any time from the **Profile** tab → **Delete account**.
 
 ## Children's Privacy
 

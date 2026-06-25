@@ -246,7 +246,7 @@
 
   /* Sign in with Apple — Apple HIG black button */
   .btn-apple {
-    @apply inline-flex items-center justify-center gap-2.5 w-full py-3.5 text-[15px] font-semibold text-white rounded-xl transition-colors;
+    @apply inline-flex items-center justify-center gap-2.5 w-full min-h-[50px] py-3 text-[15px] font-semibold text-white rounded-xl transition-colors;
     background: #000000;
   }
 

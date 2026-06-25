@@ -1,5 +1,4 @@
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 
 const DEFAULT_PRIVACY_URL =
   import.meta.env.VITE_PRIVACY_URL ||
@@ -15,18 +14,15 @@ export const LEGAL = {
   supportEmail: SUPPORT_EMAIL,
 } as const;
 
-/** Open legal page in-app (hash route) or system browser on native. */
+/** Open legal page inside the app on native; use hosted URL only on web if needed. */
 export async function openLegalPage(page: 'privacy' | 'terms') {
   const hash = page === 'privacy' ? '#/privacy-policy' : '#/terms-of-service';
 
+  // Keep legal content in-app on iOS/Android — never open Safari during review flows.
   if (Capacitor.isNativePlatform()) {
-    const url = page === 'privacy' ? LEGAL.privacyUrl : LEGAL.termsUrl;
-    try {
-      await Browser.open({ url, presentationStyle: 'popover' });
-      return;
-    } catch {
-      // Fall through to hash navigation
-    }
+    window.location.hash = hash;
+    window.dispatchEvent(new Event('app-route-change'));
+    return;
   }
 
   window.location.hash = hash;
@@ -38,13 +34,16 @@ export function openSupportEmail(subject = 'The Climate Note Support') {
   window.location.href = mailto;
 }
 
-export function openReportContent(noteId: string, excerpt: string) {
+export function openReportContent(noteId: string, excerpt: string, reason?: string) {
   const body = [
     'I would like to report community content.',
     '',
+    reason ? `Reason: ${reason}` : '',
     `Note ID: ${noteId}`,
     `Excerpt: ${excerpt.slice(0, 200)}`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
   const mailto = `mailto:${LEGAL.supportEmail}?subject=${encodeURIComponent('Report community note')}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
 }

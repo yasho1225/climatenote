@@ -17,7 +17,7 @@ import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
 import NoteCardGenerator from './NoteCardGenerator';
 import { publicAuthorInitial, publicAuthorName } from '../lib/publicProfile';
-import { openReportContent } from '../lib/legalLinks';
+import ReportNoteSheet from './ui/ReportNoteSheet';
 import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface NotebookViewProps {
@@ -75,6 +75,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
   const [shareNote, setShareNote] = useState<(UserNote & { article_title?: string }) | null>(null);
   const [feedSearch, setFeedSearch] = useState('');
   const [trendingFilter, setTrendingFilter] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ noteId: string; excerpt: string } | null>(null);
   const { nextGeneration, isCurrent } = useRequestGuard();
 
   const loadNotes = useCallback(async () => {
@@ -503,7 +504,12 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
 
               <button
                 type="button"
-                onClick={() => openReportContent(popupNote.note.id, popupNote.note.content)}
+                onClick={() =>
+                  setReportTarget({
+                    noteId: popupNote.note.id,
+                    excerpt: popupNote.note.content,
+                  })
+                }
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold border border-sage-200 text-ink-muted hover:text-forest hover:bg-sage-50"
                 aria-label="Report this note"
               >
@@ -513,6 +519,14 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
             </div>
           </div>
         </>
+      )}
+
+      {reportTarget && (
+        <ReportNoteSheet
+          noteId={reportTarget.noteId}
+          excerpt={reportTarget.excerpt}
+          onClose={() => setReportTarget(null)}
+        />
       )}
     </div>
   );

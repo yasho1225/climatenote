@@ -49,7 +49,7 @@ export default function TermsOfService() {
               <li>Personal action note-taking functionality</li>
               <li>Community sharing features</li>
               <li>Streak tracking and gamification</li>
-              <li>Push notifications and reminders</li>
+              <li>Optional local daily reminders</li>
             </ul>
 
             <h2 className="flex items-center space-x-2 text-2xl font-bold text-gray-900 mb-4 mt-8">
@@ -89,6 +89,13 @@ export default function TermsOfService() {
               <li>Contains personal information of others without consent</li>
             </ul>
 
+            <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-6">Reporting and moderation</h3>
+            <p>
+              You can report community notes in the app (Notebook → tap a note → Report). We review
+              reports within 24–48 hours and may remove content or restrict accounts that violate
+              these Terms.
+            </p>
+
             <h2 className="flex items-center space-x-2 text-2xl font-bold text-gray-900 mb-4 mt-8">
               <Shield className="w-6 h-6 text-emerald-600" />
               <span>Privacy and Data</span>
@@ -127,7 +134,7 @@ export default function TermsOfService() {
 
             <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">Termination</h2>
             <ul className="space-y-2">
-              <li>You may terminate your account at any time through the app settings</li>
+              <li>You may terminate your account at any time from the Profile tab → Delete account</li>
               <li>We may terminate accounts that violate these terms</li>
               <li>Upon termination, your right to use the service ceases immediately</li>
               <li>We may retain certain information as required by law or for legitimate business purposes</li>

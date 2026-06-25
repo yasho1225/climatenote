@@ -95,8 +95,10 @@ export function ArticleSummaryCard({
           </li>
         ))}
       </ul>
-      {fromDemo && (
-        <p className="text-[10px] text-sage-500 mt-3 italic">Offline preview — add Supabase env vars for live AI</p>
+      {fromDemo && !import.meta.env.PROD && (
+        <p className="text-[10px] text-sage-500 mt-3 italic">
+          AI summary isn&apos;t available right now. You can still read the full article below.
+        </p>
       )}
     </div>
   );

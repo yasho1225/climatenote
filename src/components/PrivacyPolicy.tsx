@@ -109,7 +109,7 @@ export default function PrivacyPolicy() {
             <p>To exercise these rights, contact us at privacy@theclimatenote.com</p>
 
             <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">Data Retention</h2>
-            <p>We retain your information as long as your account is active or as needed to provide services. You can delete your account at any time through the app settings.</p>
+            <p>We retain your information as long as your account is active or as needed to provide services. You can delete your account at any time from the <strong>Profile</strong> tab → <strong>Delete account</strong>.</p>
 
             <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">Children's Privacy</h2>
             <p>Our service is not intended for children under 13. We do not knowingly collect personal information from children under 13.</p>

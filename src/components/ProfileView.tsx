@@ -56,10 +56,11 @@ export default function ProfileView({
   });
 
   const menuItems = [
-    { icon: User, label: 'Profile & account', subtitle: 'Name, email, delete account', onClick: onEditProfile },
+    { icon: User, label: 'Profile & account', subtitle: 'Name and email', onClick: onEditProfile },
     { icon: Target, label: 'My goals', onClick: onGoals },
     { icon: Bell, label: 'Notifications', onClick: onNotifications },
     { icon: Flame, label: 'Leaderboard', onClick: onLeaderboard },
+    { icon: Trash2, label: 'Delete account', subtitle: 'Permanently remove your account', onClick: onDeleteAccount, danger: true },
   ];
 
   return (
@@ -89,23 +90,27 @@ export default function ProfileView({
       </div>
 
       <div className="app-card overflow-hidden">
-        {menuItems.map(({ icon: Icon, label, subtitle, onClick }) => (
+        {menuItems.map(({ icon: Icon, label, subtitle, onClick, danger }) => (
           <button
             key={label}
             type="button"
             onClick={onClick}
-            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-mist transition-colors border-b border-sage-100/80 last:border-0"
+            className={`w-full flex items-center gap-3 px-4 py-4 transition-colors border-b border-sage-100/80 last:border-0 ${
+              danger ? 'hover:bg-red-50' : 'hover:bg-mist'
+            }`}
           >
-            <div className="w-9 h-9 rounded-xl bg-sage-100 flex items-center justify-center">
-              <Icon className="w-4 h-4 text-sage-600" strokeWidth={2} />
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+              danger ? 'bg-red-50' : 'bg-sage-100'
+            }`}>
+              <Icon className={`w-4 h-4 ${danger ? 'text-red-600' : 'text-sage-600'}`} strokeWidth={2} />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <span className="block font-semibold text-ink text-sm">{label}</span>
+              <span className={`block font-semibold text-sm ${danger ? 'text-red-600' : 'text-ink'}`}>{label}</span>
               {subtitle ? (
-                <span className="block text-xs text-ink-muted mt-0.5">{subtitle}</span>
+                <span className={`block text-xs mt-0.5 ${danger ? 'text-red-500/80' : 'text-ink-muted'}`}>{subtitle}</span>
               ) : null}
             </div>
-            <ChevronRight className="w-4 h-4 text-sage-300 shrink-0" />
+            <ChevronRight className={`w-4 h-4 shrink-0 ${danger ? 'text-red-300' : 'text-sage-300'}`} />
           </button>
         ))}
       </div>
