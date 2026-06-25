@@ -1,3 +1,7 @@
+---
+permalink: /privacy
+---
+
 # Privacy Policy for The Climate Note
 
 **Effective Date:** March 22, 2026

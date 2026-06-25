@@ -5,6 +5,11 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://127.0.0.1:4173',
   'https://theclimatenote.com',
   'https://www.theclimatenote.com',
+  // Capacitor iOS / Android WebView origins
+  'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
+  'https://localhost',
 ];
 
 function parseAllowedOrigins(): string[] {

@@ -7,8 +7,12 @@ export type EnabledOAuthProviders = Record<OAuthProvider, boolean>;
 
 let cachedProviders: EnabledOAuthProviders | null = null;
 
-export async function getEnabledOAuthProviders(): Promise<EnabledOAuthProviders> {
-  if (cachedProviders) {
+export function clearOAuthProviderCache(): void {
+  cachedProviders = null;
+}
+
+export async function getEnabledOAuthProviders(forceRefresh = false): Promise<EnabledOAuthProviders> {
+  if (cachedProviders && !forceRefresh) {
     return cachedProviders;
   }
 

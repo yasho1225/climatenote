@@ -88,21 +88,24 @@ export function buildFigureFromArticle(article: Article): ArticleFigure | null {
 
   let chart: ArticleFigureChart | null = null;
   if (stats.length >= 2) {
-    chart = normalizeFigureChart({
-      type: 'bar',
-      title: 'By the numbers',
-      labels: stats.slice(0, 5).map((stat) => shortenLabel(stat)),
-      values: stats.slice(0, 5).map((stat, index) => extractNumericValue(stat) ?? (index + 1) * 10),
-      unit: inferChartUnit(stats),
-    });
-  } else {
-    chart = {
-      type: 'bar',
-      title: 'Impact at different scales',
-      labels: ['Individual', 'Community (100)', 'Global reach'],
-      values: [1, 100, 10000],
-      unit: 'relative scale',
-    };
+    const labels: string[] = [];
+    const values: number[] = [];
+    for (const stat of stats.slice(0, 5)) {
+      const value = extractNumericValue(stat);
+      if (value !== null) {
+        labels.push(shortenLabel(stat));
+        values.push(value);
+      }
+    }
+    if (labels.length >= 2) {
+      chart = normalizeFigureChart({
+        type: 'bar',
+        title: 'By the numbers',
+        labels,
+        values,
+        unit: inferChartUnit(stats),
+      });
+    }
   }
 
   return {
@@ -197,18 +200,12 @@ export function buildDemoInsights(article: Article): ArticleAiInsights {
 
   const figure =
     buildFigureFromArticle(article) ?? {
-      headline: stats[0] ?? 'Everyday actions compound across millions of people',
+      headline: stats[0] ?? 'Key points from this article',
       stat_value: '—',
       stat_label: topic,
       source: 'Article data',
       source_url: null,
-      chart: {
-        type: 'bar',
-        title: 'Impact at different scales',
-        labels: ['Individual', 'Community (100)', 'Global reach'],
-        values: [1, 100, 10000],
-        unit: 'relative scale',
-      },
+      chart: null,
     };
 
   return {
@@ -240,7 +237,7 @@ export async function fetchArticleInsights(
     return {
       insights: buildDemoInsights(article),
       cached: false,
-      fromDemo: false,
+      fromDemo: true,
       error: 'Sign in to generate AI summaries.',
     };
   }
@@ -270,11 +267,13 @@ export async function fetchArticleInsights(
     throw new Error('No insights returned');
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch article insights';
-    console.error('Failed to fetch article insights:', err);
+    if (import.meta.env.DEV) {
+      console.error('Failed to fetch article insights:', err);
+    }
     return {
       insights: buildDemoInsights(article),
       cached: false,
-      fromDemo: false,
+      fromDemo: true,
       error: message,
     };
   }

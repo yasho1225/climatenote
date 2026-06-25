@@ -40,9 +40,9 @@ export function getMasteryLevel(totalNotes: number): { level: number; title: str
     'Green Sprout',
     'Eco Explorer',
     'Climate Ally',
-    'Planet Guardian',
-    'Earth Champion',
-    'Nature Steward',
+    'Consistent Contributor',
+    'Habit Builder',
+    'Community Regular',
   ];
   const title = titles[Math.min(level - 1, titles.length - 1)];
   const xpInLevel = (totalNotes % 5) * 200;

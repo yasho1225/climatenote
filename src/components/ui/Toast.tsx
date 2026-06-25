@@ -59,7 +59,12 @@ export function Toaster() {
   };
 
   return (
-    <div className="fixed mobile-frame-fixed top-4 right-4 z-50 space-y-2">
+    <div
+      className="fixed mobile-frame-fixed top-4 right-4 z-50 space-y-2"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       {currentToasts.map((toast) => (
         <ToastComponent key={toast.id} toast={toast} onRemove={removeToast} />
       ))}
@@ -93,8 +98,10 @@ function ToastComponent({ toast, onRemove }: { toast: Toast; onRemove: (id: stri
       <Icon className={`w-5 h-5 ${iconColors[toast.type]} flex-shrink-0`} />
       <p className="text-sm font-medium flex-1">{toast.message}</p>
       <button
+        type="button"
         onClick={() => onRemove(toast.id)}
         className="text-gray-400 hover:text-gray-600 transition-colors"
+        aria-label="Dismiss notification"
       >
         <X className="w-4 h-4" />
       </button>

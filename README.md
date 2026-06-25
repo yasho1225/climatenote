@@ -1,109 +1,55 @@
-# The Climate Note 📓
+# The Climate Note
 
-Daily climate action, one note at a time. 📝
+Daily climate stories and personal action notes — iOS app (Capacitor) + Supabase backend.
 
-## About - Founder's Note
+## Quick start
 
-Hi! I’m Siyeong (John) Park, founder of The Climate Note and an aspiring environmental scientist. As I approached climate change in various perspectives, through scientific research, policies, and running various relevant projects. 
-
-After trying to understand this big issue of climate change in small bites, I realized the importance of **taking action**. Also, I realized that most of our generation is aware of the problems and the actions that we could take to mitigate climate change.
-	
-The Climate Note is different from other newsletters in a way we encourage **you** to take actions for the environment. Through our articles made by the youth, and the ‘climate note’ function, we will help you think more about your actions and remind you of a small habit to fix.
-
-**Together, I am confident that climate change is solvable.**
-
-
-## Features
-
-- 📖 **Daily Environmental Articles** - Fresh insights and actionable content
-- 📝 **Personal Action Notes** - Turn reading into commitment
-- 🔥 **Streak System** - Gamified habit building
-- 👥 **Community Notebook** - See what others are doing
-- 🔔 **Smart Notifications** - Never miss your daily note
-- 📱 **Native Mobile App** - Available on iOS App Store
-
-## Tech Stack
-
-- **Frontend**: React + TypeScript + Tailwind CSS
-- **Backend**: Supabase (PostgreSQL + Auth + Real-time)
-- **Mobile**: Capacitor (iOS/Android)
-- **Hosting**: Bolt Hosting / Netlify
-- **Notifications**: Web Push API + Native Push
-
-## Development
-
-### Web Development
 ```bash
 npm install
-npm run dev
+cp .env.example .env   # add Supabase URL + anon key
+npm run dev            # web preview at http://localhost:5173
 ```
 
-### iOS App Development
+## iOS build (Mac required)
+
 ```bash
-# Build and open in Xcode
-npm run ios:build
-
-# Run on iOS simulator
-npm run ios:run
-
-# Sync changes to native app
-npm run capacitor:sync
+npm run icons:generate   # once, or after changing app-icon.svg
+npm run ios:build        # validates .env, builds, syncs Capacitor, opens Xcode
 ```
 
-## App Store Deployment
+Archive in Xcode → upload to App Store Connect.
 
-### Prerequisites
-- Apple Developer Account ($99/year)
-- Xcode (Mac required)
-- iOS device for testing
+**Full submission checklist:** see [`APP_STORE_SUBMISSION_STEPS.md`](APP_STORE_SUBMISSION_STEPS.md)
 
-### Build Process
-1. **Build web app**: `npm run build`
-2. **Sync to iOS**: `npx cap sync ios`
-3. **Open Xcode**: `npx cap open ios`
-4. **Configure signing** in Xcode
-5. **Build and archive** for App Store
-6. **Submit via App Store Connect**
+## Scripts
 
-### App Store Requirements
-- ✅ Privacy Policy (data collection)
-- ✅ App Icons (multiple sizes)
-- ✅ Screenshots for listing
-- ✅ App Store description
-- ✅ Age rating and categories
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Local web dev server |
+| `npm run build:prod` | Production web build (checks `.env`) |
+| `npm run ios:build` | Prod build + Capacitor sync + Xcode |
+| `npm run icons:generate` | iOS app icons from `app-icon.svg` |
+| `npm test` | Unit tests |
 
-## Environment Variables
+## Docs
 
-Create a `.env` file:
+| File | Purpose |
+|------|---------|
+| `APP_STORE_SUBMISSION_STEPS.md` | App Store submission checklist |
+| `OAUTH_SETUP_GUIDE.md` | Apple / Google sign-in setup |
+| `ARTICLE_SCHEDULING_SETUP.md` | Daily article publishing |
+| `docs/privacy.md` | Privacy policy (GitHub Pages) |
+| `docs/terms.md` | Terms of service (GitHub Pages) |
+
+## Environment
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_PRIVACY_URL=https://yasho1225.github.io/climatenote/privacy
+VITE_TERMS_URL=https://yasho1225.github.io/climatenote/terms
 ```
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
 
-## Database Schema
+## Stack
 
-The app uses Supabase with the following tables:
-- `articles` - Environmental articles and content
-- `user_profiles` - User data and streak tracking
-- `user_notes` - Personal action notes
-- `note_reactions` - Community encouragement system
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Contact
-
-For questions about The Climate Note platform or contributing, please reach out through GitHub issues.
-
----
-
-**Making environmental action accessible, one note at a time.** 🌱
+React · TypeScript · Tailwind · Supabase · Capacitor iOS

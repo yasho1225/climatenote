@@ -9,10 +9,6 @@ export function resolvePublicDisplayName(
 ): string {
   const name = profile?.display_name?.trim();
   if (name) return name;
-
-  const fromEmail = profile?.email?.split('@')[0]?.trim();
-  if (fromEmail) return fromEmail;
-
   return fallback;
 }
 
@@ -27,7 +23,7 @@ export function defaultDisplayNameForUser(user: {
   if (oauthName) return oauthName.trim().slice(0, 30);
 
   const fromEmail = user.email?.split('@')[0]?.trim();
-  if (fromEmail) return fromEmail.slice(0, 30);
+  if (fromEmail && !fromEmail.includes('+')) return fromEmail.slice(0, 30);
 
   return '';
 }
@@ -48,7 +44,6 @@ export function colorSeedForProfile(
 ): string {
   return (
     profile?.display_name?.trim() ||
-    profile?.email?.split('@')[0]?.trim() ||
     profile?.id ||
     fallbackId ||
     'member'

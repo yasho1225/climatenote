@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
             <Shield className="w-8 h-8 text-emerald-600" />
             <h1 className="text-3xl font-bold text-gray-900">Privacy Policy</h1>
           </div>
-          <p className="text-gray-600">Last updated: January 15, 2025</p>
+          <p className="text-gray-600">Last updated: March 22, 2026</p>
         </div>
 
         {/* Content */}
@@ -52,9 +52,20 @@ export default function PrivacyPolicy() {
             <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-6">Automatically Collected Information</h3>
             <ul className="space-y-2">
               <li><strong>Device Information:</strong> Device type, operating system, app version</li>
-              <li><strong>Usage Analytics:</strong> Feature usage, session duration, crash reports</li>
-              <li><strong>Notification Preferences:</strong> Your reminder settings and notification choices</li>
+              <li><strong>Notification Preferences:</strong> Your reminder settings stored on your device</li>
             </ul>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">AI Processing</h2>
+            <p>
+              When you use article summaries, action suggestions, or impact estimates, we send relevant
+              article text and your action notes to <strong>Google Gemini</strong> via our secure servers
+              to generate responses. We do not sell this data. See Google&apos;s AI terms for their handling
+              of API requests.
+            </p>
+            <p className="mt-2">
+              Environmental impact figures shown in the app are <strong>modeled estimates</strong>, not
+              verified measurements.
+            </p>
 
             <h2 className="flex items-center space-x-2 text-2xl font-bold text-gray-900 mb-4 mt-8">
               <Users className="w-6 h-6 text-emerald-600" />
@@ -65,7 +76,7 @@ export default function PrivacyPolicy() {
               <li>Provide and maintain our service</li>
               <li>Send you daily environmental articles</li>
               <li>Enable community features (shared action notes)</li>
-              <li>Send push notifications and reminders</li>
+              <li>Send optional local reminders</li>
               <li>Improve our app and user experience</li>
               <li>Ensure security and prevent fraud</li>
             </ul>
@@ -73,8 +84,8 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4 mt-8">Information Sharing</h2>
             <p>We do not sell, trade, or rent your personal information. We may share information in these limited circumstances:</p>
             <ul className="space-y-2">
-              <li><strong>Community Features:</strong> Your action notes may be visible to other users (email addresses are anonymized)</li>
-              <li><strong>Service Providers:</strong> Third-party services that help us operate our app (Supabase for data storage)</li>
+              <li><strong>Community Features:</strong> Your display name and shared action notes may be visible to other users. Your email is never shown publicly.</li>
+              <li><strong>Service Providers:</strong> Supabase (hosting/database), Google Gemini (AI features), Apple/Google (sign-in, if you choose them)</li>
               <li><strong>Legal Requirements:</strong> When required by law or to protect our rights</li>
             </ul>
 
@@ -94,7 +105,6 @@ export default function PrivacyPolicy() {
               <li>Correct inaccurate information</li>
               <li>Delete your account and data</li>
               <li>Opt-out of notifications</li>
-              <li>Export your data</li>
             </ul>
             <p>To exercise these rights, contact us at privacy@theclimatenote.com</p>
 
@@ -117,12 +127,12 @@ export default function PrivacyPolicy() {
             <p>If you have questions about this Privacy Policy, contact us at:</p>
             <ul className="space-y-2">
               <li><strong>Email:</strong> privacy@theclimatenote.com</li>
-              <li><strong>Website:</strong> https://theclimatenote.bolt.host</li>
+              <li><strong>Support:</strong> support@theclimatenote.com</li>
             </ul>
 
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mt-8">
               <p className="text-emerald-800 text-sm">
-                <strong>This privacy policy was last updated on January 15, 2025.</strong>
+                <strong>This privacy policy was last updated on March 22, 2026.</strong>
               </p>
             </div>
           </div>

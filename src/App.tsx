@@ -18,6 +18,8 @@ import TermsOfService from './components/TermsOfService';
 
 import DemoMode from './components/DemoMode';
 
+import ConnectionErrorScreen from './components/ui/ConnectionErrorScreen';
+
 import { Toaster, showToast } from './components/ui/Toast';
 
 import { completeOAuthSignIn } from './lib/oauthCallback';
@@ -316,25 +318,17 @@ function App() {
 
   if (!hasSupabaseConfig && !isPasswordReset && !isPrivacyPolicy && !isTermsOfService && !isPrivacyPolicyHash && !isTermsOfServiceHash) {
 
+    const isNative = Capacitor.isNativePlatform();
+
     return (
 
       <MobileAppFrame background="neutral">
 
         <div className="flex flex-1 min-h-0 flex-col">
 
-          {configError ? (
+          {isNative || configError || !import.meta.env.DEV ? (
 
-            <div className="flex flex-1 min-h-0 items-center justify-center p-6">
-
-              <div className="max-w-md card-surface p-6">
-
-                <h1 className="text-lg font-bold text-forest mb-2">Supabase configuration problem</h1>
-
-                <p className="text-sm text-gray-600 leading-relaxed">{configError}</p>
-
-              </div>
-
-            </div>
+            <ConnectionErrorScreen onRetry={() => window.location.reload()} />
 
           ) : (
 

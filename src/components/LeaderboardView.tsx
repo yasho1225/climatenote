@@ -10,7 +10,6 @@ import { useRequestGuard } from '../lib/useRequestGuard';
 interface LeaderboardEntry {
   user_id: string;
   display_name: string | null;
-  email: string | null;
   streak: number;
   note_count: number;
   avatar_url: string | null;
@@ -61,23 +60,29 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const { start, end } = getAppDateRange(p);
       const { data: notes, error } = await supabase
         .from('user_notes')
-        .select('user_id, user_profiles!inner(id, display_name, email, streak, avatar_url)')
+        .select('user_id, created_at')
         .gte('created_at', start)
         .lte('created_at', end);
 
       if (error) throw error;
 
-      // Group by user_id in memory
+      const userIds = [...new Set((notes || []).map((note) => note.user_id))];
+      const { data: profiles } = await supabase
+        .from('community_profiles')
+        .select('id, display_name, streak')
+        .in('id', userIds);
+
+      const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
       const grouped: Record<string, LeaderboardEntry> = {};
       for (const note of notes || []) {
-        const profile = (note as any).user_profiles;
+        const profile = profileById.get(note.user_id);
         if (!grouped[note.user_id]) {
           grouped[note.user_id] = {
             user_id: note.user_id,
             display_name: profile?.display_name || null,
-            email: profile?.email || null,
             streak: profile?.streak || 0,
-            avatar_url: profile?.avatar_url || null,
+            avatar_url: null,
             note_count: 0,
           };
         }
@@ -119,19 +124,26 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
       const noteIds = featured.map((f: any) => f.note_id);
       const { data: notes, error: notesError } = await supabase
         .from('user_notes')
-        .select('id, content, user_profiles!inner(display_name, email, streak)')
+        .select('id, content, user_id')
         .in('id', noteIds);
 
       if (notesError) throw notesError;
 
-      const noteMap: Record<string, any> = {};
+      const authorIds = [...new Set((notes || []).map((n) => n.user_id))];
+      const { data: profiles } = await supabase
+        .from('community_profiles')
+        .select('id, display_name, streak')
+        .in('id', authorIds);
+      const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+      const noteMap: Record<string, { content: string; user_id: string }> = {};
       for (const n of notes || []) {
         noteMap[n.id] = n;
       }
 
-      const result: FeaturedNote[] = featured.map((f: any) => {
+      const result: FeaturedNote[] = featured.map((f: { id: string; note_id: string; admin_message: string | null; featured_date: string }) => {
         const note = noteMap[f.note_id];
-        const profile = note?.user_profiles;
+        const profile = note ? profileById.get(note.user_id) : undefined;
         const authorName = publicAuthorName(profile);
         return {
           id: f.id,
@@ -154,19 +166,26 @@ export default function LeaderboardView({ userProfile }: LeaderboardViewProps) {
     const { start, end } = getAppDateRange('daily');
     const { data, error } = await supabase
       .from('user_notes')
-      .select('id, content, created_at, user_id, user_profiles!inner(display_name, email)')
+      .select('id, content, created_at, user_id')
       .gte('created_at', start)
       .lte('created_at', end)
       .order('created_at', { ascending: false });
 
     if (error) { console.error(error); return; }
 
-    const notes: TodayNote[] = (data || []).map((n: any) => ({
+    const authorIds = [...new Set((data || []).map((n) => n.user_id))];
+    const { data: profiles } = await supabase
+      .from('community_profiles')
+      .select('id, display_name')
+      .in('id', authorIds);
+    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    const notes: TodayNote[] = (data || []).map((n) => ({
       id: n.id,
       content: n.content,
       created_at: n.created_at,
       user_id: n.user_id,
-      author_name: publicAuthorName(n.user_profiles),
+      author_name: publicAuthorName(profileById.get(n.user_id)),
     }));
     setTodayNotes(notes);
 

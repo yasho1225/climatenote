@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Flame, Search } from 'lucide-react';
+import { Flame, Search, Bell } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { getAvatarColor, getDisplayName, getGreeting, getInitials } from '../../lib/userDisplay';
 
@@ -28,7 +28,8 @@ export default function AppHeader({
         <button
           type="button"
           onClick={onProfilePress}
-          className="flex items-center gap-3 min-w-0 text-left"
+          className="flex items-center gap-3 min-w-0 text-left touch-target"
+          aria-label={variant === 'home' ? 'Open profile' : 'Profile'}
         >
           {userProfile ? (
             <div
@@ -76,7 +77,7 @@ export default function AppHeader({
             className="touch-target w-10 h-10 rounded-full bg-sage-100/80 flex items-center justify-center text-sage-600 active:bg-sage-200 transition-colors shadow-card"
             aria-label="Notifications"
           >
-            <Zap className="w-5 h-5" />
+            <Bell className="w-5 h-5" aria-hidden />
           </button>
         </div>
       </div>

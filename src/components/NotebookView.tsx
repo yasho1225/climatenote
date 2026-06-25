@@ -10,12 +10,14 @@ import {
   Pencil,
   MapPin,
   Search,
+  Flag,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
 import NoteCardGenerator from './NoteCardGenerator';
 import { publicAuthorInitial, publicAuthorName } from '../lib/publicProfile';
+import { openReportContent } from '../lib/legalLinks';
 import { useRequestGuard } from '../lib/useRequestGuard';
 
 interface NotebookViewProps {
@@ -24,7 +26,7 @@ interface NotebookViewProps {
 }
 
 interface NoteWithReactions extends UserNote {
-  user_profiles: { display_name: string | null; email: string | null; id: string };
+  user_profiles: { display_name: string | null; id: string };
   articles: { title: string; published_date: string };
   reaction_count: number;
   user_has_reacted: boolean;
@@ -83,7 +85,6 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
         .from('user_notes')
         .select(`
           *,
-          user_profiles!inner(id, display_name, email),
           articles!inner(title, published_date)
         `)
         .order('created_at', { ascending: false })
@@ -95,6 +96,16 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
         if (isCurrent(generation)) setNotes([]);
         return;
       }
+
+      const authorIds = [...new Set(notesData.map((note) => note.user_id))];
+      const { data: authorProfiles } = await supabase
+        .from('community_profiles')
+        .select('id, display_name')
+        .in('id', authorIds);
+
+      const profileById = new Map(
+        (authorProfiles ?? []).map((profile) => [profile.id, profile]),
+      );
 
       const noteIds = notesData.map((note) => note.id);
       let reactionCounts: { note_id: string }[] = [];
@@ -123,6 +134,10 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
 
       const notesWithReactions: NoteWithReactions[] = notesData.map((note) => ({
         ...note,
+        user_profiles: profileById.get(note.user_id) ?? {
+          id: note.user_id,
+          display_name: null,
+        },
         reaction_count: reactionCounts?.filter((r) => r.note_id === note.id).length || 0,
         user_has_reacted: userReactions.some((r) => r.note_id === note.id),
       }));
@@ -146,10 +161,11 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
     loadNotes();
   }, [loadNotes]);
 
-  const co2Display = useMemo(() => {
-    const kg = Math.round(notes.length * 1.2);
-    return kg.toLocaleString();
-  }, [notes.length]);
+  const notesSharedToday = useMemo(() => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    return notes.filter((note) => new Date(note.created_at) >= startOfDay).length;
+  }, [notes]);
 
   const visibleNotes = useMemo(() => {
     const query = feedSearch.trim().toLowerCase();
@@ -238,7 +254,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
         <h1 className="community-hero-title mb-3">Community Notebook</h1>
         <div className="community-badge">
           <Leaf className="w-3.5 h-3.5 text-sage-600 shrink-0" strokeWidth={2.5} />
-          <span>{co2Display}kg CO₂ saved today</span>
+          <span>{notesSharedToday} action{notesSharedToday === 1 ? '' : 's'} shared today</span>
         </div>
       </div>
 
@@ -484,6 +500,16 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
                   Share
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => openReportContent(popupNote.note.id, popupNote.note.content)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold border border-sage-200 text-ink-muted hover:text-forest hover:bg-sage-50"
+                aria-label="Report this note"
+              >
+                <Flag className="w-4 h-4" aria-hidden />
+                Report
+              </button>
             </div>
           </div>
         </>

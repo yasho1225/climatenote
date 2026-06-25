@@ -50,6 +50,11 @@ serve(async (req) => {
     const adminClient = createServiceClient()
     const userId = user.id
 
+    await adminClient
+      .from('audit_log')
+      .update({ user_id: null, ip: null, metadata: {} })
+      .eq('user_id', userId)
+
     const { error: notesDeleteError } = await adminClient
       .from('user_notes')
       .delete()

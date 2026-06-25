@@ -7,9 +7,11 @@ import { openInAppOAuth } from '../lib/nativeOAuth';
 import {
   getEnabledOAuthProviders,
   getOAuthProviderSetupMessage,
+  clearOAuthProviderCache,
   type EnabledOAuthProviders,
   type OAuthProvider,
 } from '../lib/authProviders';
+import { canUseNativeAppleSignIn, signInWithAppleNative } from '../lib/appleAuth';
 import { showToast } from './ui/Toast';
 import AppShell from './ui/AppShell';
 import GradientButton from './ui/GradientButton';
@@ -17,6 +19,7 @@ import AppleSignInButton from './ui/AppleSignInButton';
 import FloatingBottomBar from './layout/FloatingBottomBar';
 import BotanicalBackground from './layout/BotanicalBackground';
 import { useScrollToTop } from '../hooks/useScrollToTop';
+import { openLegalPage } from '../lib/legalLinks';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -41,17 +44,46 @@ export default function LandingPage() {
     apple: false,
   });
   const [oauthReady, setOauthReady] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const isNative = Capacitor.isNativePlatform();
 
   useScrollToTop(step);
 
   useEffect(() => {
-    getEnabledOAuthProviders().then((providers) => {
-      setOauthProviders(providers);
-      setOauthReady(true);
-    });
-  }, []);
+    let cancelled = false;
+
+    const loadProviders = async (forceRefresh = false) => {
+      const providers = await getEnabledOAuthProviders(forceRefresh);
+      if (!cancelled) {
+        setOauthProviders(providers);
+        setOauthReady(true);
+      }
+    };
+
+    if (step === 'auth') {
+      setOauthReady(false);
+      void loadProviders(true);
+    } else {
+      void loadProviders();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== 'auth') return;
+
+    const refreshProviders = () => {
+      clearOAuthProviderCache();
+      void getEnabledOAuthProviders(true).then(setOauthProviders);
+    };
+
+    window.addEventListener('focus', refreshProviders);
+    return () => window.removeEventListener('focus', refreshProviders);
+  }, [step]);
 
   useEffect(() => {
     if (!isNative) return;
@@ -84,6 +116,16 @@ export default function LandingPage() {
     }
     setLoading(true);
     try {
+      if (provider === 'apple' && canUseNativeAppleSignIn()) {
+        const result = await signInWithAppleNative();
+        if (result.ok) {
+          showToast('Signed in successfully!', 'success');
+        } else if (result.error && result.error !== 'Sign in cancelled.') {
+          showToast(result.error, 'error');
+        }
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -104,6 +146,10 @@ export default function LandingPage() {
       const message = error instanceof Error ? error.message : 'Please try again.';
       showToast(`Failed to sign in with ${provider}: ${message}`, 'error');
       setLoading(false);
+    } finally {
+      if (provider === 'apple' && canUseNativeAppleSignIn()) {
+        setLoading(false);
+      }
     }
   };
 
@@ -201,8 +247,8 @@ export default function LandingPage() {
             I already have an account
           </button>
           <div className="pt-3 flex justify-center gap-5 text-xs text-sage-400">
-            <a href="/privacy-policy" className="hover:text-sage-600 transition-colors">Privacy</a>
-            <a href="/terms-of-service" className="hover:text-sage-600 transition-colors">Terms</a>
+            <button type="button" onClick={() => void openLegalPage('privacy')} className="hover:text-sage-600 transition-colors">Privacy</button>
+            <button type="button" onClick={() => void openLegalPage('terms')} className="hover:text-sage-600 transition-colors">Terms</button>
           </div>
         </FloatingBottomBar>
       </AppShell>
@@ -244,16 +290,19 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <AppleSignInButton
-                    onClick={() => handleSocialAuth('apple')}
-                    disabled={loading}
-                  />
+                  {oauthProviders.apple && (
+                    <AppleSignInButton
+                      onClick={() => handleSocialAuth('apple')}
+                      disabled={loading || (!isLogin && !showForgotPassword && !acceptedTerms)}
+                    />
+                  )}
                   {oauthProviders.google && (
                     <button
                       type="button"
                       onClick={() => handleSocialAuth('google')}
-                      disabled={loading}
+                      disabled={loading || (!isLogin && !showForgotPassword && !acceptedTerms)}
                       className="btn-outline"
+                      aria-label="Continue with Google"
                     >
                       <GoogleIcon />
                       Continue with Google
@@ -262,7 +311,7 @@ export default function LandingPage() {
                 </>
               )}
 
-              {oauthReady && (
+              {oauthReady && (oauthProviders.apple || oauthProviders.google) && !showForgotPassword && (
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-sage-100" />
                   <span className="text-xs text-sage-400">or</span>
@@ -310,7 +359,33 @@ export default function LandingPage() {
               </button>
             )}
 
-            <GradientButton type="submit" disabled={loading}>
+            {!isLogin && !showForgotPassword && (
+              <label className="flex items-start gap-3 text-sm text-ink-soft cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 rounded border-sage-300 text-forest focus:ring-sage-400"
+                  required
+                />
+                <span>
+                  I agree to the{' '}
+                  <button type="button" onClick={() => void openLegalPage('terms')} className="text-forest font-semibold underline">
+                    Terms
+                  </button>{' '}
+                  and{' '}
+                  <button type="button" onClick={() => void openLegalPage('privacy')} className="text-forest font-semibold underline">
+                    Privacy Policy
+                  </button>
+                  .
+                </span>
+              </label>
+            )}
+
+            <GradientButton
+              type="submit"
+              disabled={loading || (!isLogin && !showForgotPassword && !acceptedTerms)}
+            >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (

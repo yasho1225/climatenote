@@ -10,10 +10,13 @@ import {
   CheckSquare,
   ChevronRight,
   User,
+  Shield,
+  FileText,
   Trash2,
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { getAvatarColor, getDisplayName, getInitials, getMasteryLevel } from '../lib/userDisplay';
+import { openLegalPage, openSupportEmail, LEGAL } from '../lib/legalLinks';
 
 interface ProfileViewProps {
   userProfile: UserProfile | null;
@@ -144,6 +147,45 @@ export default function ProfileView({
           )}
         </div>
       )}
+
+      <div className="app-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => void openLegalPage('privacy')}
+          className="w-full flex items-center gap-3 px-4 py-4 active:bg-mist transition-colors border-b border-sage-100/80"
+        >
+          <div className="w-9 h-9 rounded-xl bg-sage-100 flex items-center justify-center">
+            <Shield className="w-4 h-4 text-sage-600" strokeWidth={2} aria-hidden />
+          </div>
+          <span className="flex-1 text-left font-semibold text-ink text-sm">Privacy Policy</span>
+          <ChevronRight className="w-4 h-4 text-sage-300 shrink-0" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => void openLegalPage('terms')}
+          className="w-full flex items-center gap-3 px-4 py-4 active:bg-mist transition-colors border-b border-sage-100/80"
+        >
+          <div className="w-9 h-9 rounded-xl bg-sage-100 flex items-center justify-center">
+            <FileText className="w-4 h-4 text-sage-600" strokeWidth={2} aria-hidden />
+          </div>
+          <span className="flex-1 text-left font-semibold text-ink text-sm">Terms of Service</span>
+          <ChevronRight className="w-4 h-4 text-sage-300 shrink-0" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => openSupportEmail()}
+          className="w-full flex items-center gap-3 px-4 py-4 active:bg-mist transition-colors"
+        >
+          <div className="w-9 h-9 rounded-xl bg-sage-100 flex items-center justify-center">
+            <Bell className="w-4 h-4 text-sage-600" strokeWidth={2} aria-hidden />
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <span className="block font-semibold text-ink text-sm">Support</span>
+            <span className="block text-xs text-ink-muted mt-0.5 truncate">{LEGAL.supportEmail}</span>
+          </div>
+          <ChevronRight className="w-4 h-4 text-sage-300 shrink-0" aria-hidden />
+        </button>
+      </div>
 
       <button
         type="button"

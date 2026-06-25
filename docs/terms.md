@@ -1,3 +1,7 @@
+---
+permalink: /terms
+---
+
 # Terms of Service for The Climate Note
 
 **Effective Date:** March 22, 2026

@@ -46,7 +46,7 @@ export default {
         ink: {
           DEFAULT: '#2C3429',
           soft: '#4A5248',
-          muted: '#8A9289',
+          muted: '#6B736A',
         },
       },
       fontFamily: {

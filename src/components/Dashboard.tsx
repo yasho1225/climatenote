@@ -114,7 +114,7 @@ export default function Dashboard({ session }: DashboardProps) {
 
           if (createError) throw createError;
           setUserProfile(newProfile);
-          setShowTutorial(true);
+          // Tutorial disabled until aligned with current 5-tab shell (App Store readiness).
         } catch (createError: unknown) {
           const pgError = createError as { code?: string };
           if (pgError.code === '23505') {
@@ -127,7 +127,9 @@ export default function Dashboard({ session }: DashboardProps) {
             if (retryError) throw retryError;
             const profile = await loadFreshUserProfile(session.user.id);
             setUserProfile(profile);
-            if (profile.total_notes === 0) setShowTutorial(true);
+            if (profile.total_notes === 0) {
+              /* tutorial deferred */
+            }
           } else {
             throw createError;
           }

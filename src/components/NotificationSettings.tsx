@@ -136,11 +136,11 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
                 <Smartphone className="w-5 h-5 text-blue-500" />
                 <div>
                   <h3 className="font-medium text-gray-900">
-                    {capacitorNotifications.isNative ? 'Push Notifications' : 'Browser Notifications'}
+                    {capacitorNotifications.isNative ? 'Daily Reminder' : 'Browser Notifications'}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {capacitorNotifications.isNative
-                      ? 'Get native push notifications'
+                      ? 'Local reminder at your chosen time each day'
                       : 'Get reminded on this device'}
                   </p>
                 </div>
@@ -198,19 +198,6 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
               onChange={(e) => setReminderTime(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
-          </div>
-
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-            <div className="flex items-center space-x-3 mb-2">
-              <Globe className="w-5 h-5 text-emerald-600" />
-              <h3 className="font-medium text-emerald-900">Coming Soon</h3>
-            </div>
-            <ul className="text-sm text-emerald-800 space-y-1">
-              <li>• Email reminders</li>
-              <li>• Streak recovery notifications</li>
-              <li>• Weekly progress summaries</li>
-              <li>• Community milestone alerts</li>
-            </ul>
           </div>
 
           <div className="flex items-center space-x-3">

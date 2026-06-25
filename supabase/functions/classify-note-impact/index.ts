@@ -262,7 +262,16 @@ serve(async (req) => {
     const needsReview = aiResult.confidence < 0.7
 
     // Step 2: Calculate impact using research-backed formulas
-    const impact = calculateImpact(aiResult)
+    const impact = needsReview
+      ? {
+          co2_saved_kg: 0,
+          plastic_saved_g: 0,
+          water_saved_liters: 0,
+          energy_saved_kwh: 0,
+          formula_id: null,
+          formula_source: null,
+        }
+      : calculateImpact(aiResult)
 
     // Step 3: Store impact in database
     const { error: insertError } = await supabase.from('note_impacts').upsert({
@@ -271,10 +280,10 @@ serve(async (req) => {
       action_category: aiResult.category,
       action_type: aiResult.action_type,
       confidence: aiResult.confidence,
-      co2_saved_kg: impact.co2_saved_kg,
-      plastic_saved_g: impact.plastic_saved_g,
-      water_saved_liters: impact.water_saved_liters,
-      energy_saved_kwh: impact.energy_saved_kwh,
+      co2_saved_kg: needsReview ? null : impact.co2_saved_kg,
+      plastic_saved_g: needsReview ? null : impact.plastic_saved_g,
+      water_saved_liters: needsReview ? null : impact.water_saved_liters,
+      energy_saved_kwh: needsReview ? null : impact.energy_saved_kwh,
       formula_id: impact.formula_id,
       formula_source: impact.formula_source,
       ai_reasoning: aiResult.reasoning,

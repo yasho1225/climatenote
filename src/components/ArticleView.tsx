@@ -367,7 +367,7 @@ export default function ArticleView({ article, userProfile, onProfileUpdate, com
                 className="inline-flex items-center gap-2 bg-forest hover:bg-forest-light text-white font-semibold px-6 py-3 rounded-full transition-colors text-sm"
               >
                 <Check className="w-4 h-4" />
-                <span>Mark as Done</span>
+                <span>Choose your action</span>
               </button>
               <button
                 type="button"

@@ -1,10 +1,10 @@
 import { Capacitor } from '@capacitor/core';
-import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { App } from '@capacitor/app';
 import { completeOAuthSignInFromUrl } from './lib/oauthCallback';
 import { closeInAppOAuthBrowser } from './lib/nativeOAuth';
 
+const REMINDER_NOTIFICATION_ID = 1001;
 let notificationListenersRegistered = false;
 let appListenersRegistered = false;
 
@@ -15,17 +15,16 @@ export class CapacitorNotifications {
     }
 
     try {
-      const pushResult = await PushNotifications.requestPermissions();
       const localResult = await LocalNotifications.requestPermissions();
-
-      if (pushResult.receive === 'granted' || localResult.display === 'granted') {
+      if (localResult.display === 'granted') {
         await this.setupNotificationListeners();
         return true;
       }
-
       return false;
     } catch (error) {
-      console.error('Error initializing Capacitor notifications:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error initializing local notifications:', error);
+      }
       return false;
     }
   }
@@ -36,46 +35,9 @@ export class CapacitorNotifications {
     }
     notificationListenersRegistered = true;
 
-    PushNotifications.addListener('pushNotificationReceived', () => {
-      console.log('Push notification received');
-    });
-
-    PushNotifications.addListener('pushNotificationActionPerformed', () => {
-      window.location.href = '/';
-    });
-
     LocalNotifications.addListener('localNotificationActionPerformed', () => {
       window.location.href = '/';
     });
-
-    await PushNotifications.register();
-  }
-
-  static async scheduleLocalNotification(title: string, body: string, scheduleAt: Date) {
-    if (!Capacitor.isNativePlatform()) {
-      return false;
-    }
-
-    try {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            title,
-            body,
-            id: 1001,
-            schedule: { at: scheduleAt },
-            sound: 'beep.wav',
-            attachments: undefined,
-            actionTypeId: '',
-            extra: { action: 'open_app' },
-          },
-        ],
-      });
-      return true;
-    } catch (error) {
-      console.error('Error scheduling local notification:', error);
-      return false;
-    }
   }
 
   static async scheduleDailyReminder(reminderTime: string) {
@@ -84,20 +46,33 @@ export class CapacitorNotifications {
     }
 
     const [hours, minutes] = reminderTime.split(':').map(Number);
-    const now = new Date();
-    const scheduledTime = new Date();
-    scheduledTime.setHours(hours, minutes, 0, 0);
-
-    if (scheduledTime <= now) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+      return false;
     }
 
-    await this.cancelAllNotifications();
-    return this.scheduleLocalNotification(
-      'Time for your Climate Note! 🌱',
-      "Read today's environmental story and write your action note to keep your streak going.",
-      scheduledTime
-    );
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id: REMINDER_NOTIFICATION_ID }] });
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title: 'Time for your Climate Note',
+            body: "Read today's story and log one action to keep your streak going.",
+            id: REMINDER_NOTIFICATION_ID,
+            schedule: {
+              on: { hour: hours, minute: minutes },
+              every: 'day',
+            },
+            extra: { action: 'open_app' },
+          },
+        ],
+      });
+      return true;
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error scheduling daily reminder:', error);
+      }
+      return false;
+    }
   }
 
   static async cancelAllNotifications() {
@@ -106,9 +81,11 @@ export class CapacitorNotifications {
     }
 
     try {
-      await LocalNotifications.cancel({ notifications: [{ id: 1001 }] });
+      await LocalNotifications.cancel({ notifications: [{ id: REMINDER_NOTIFICATION_ID }] });
     } catch (error) {
-      console.error('Error canceling notifications:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error canceling notifications:', error);
+      }
     }
   }
 }
@@ -118,7 +95,6 @@ async function handleDeepLink(urlString: string) {
   try {
     url = new URL(urlString);
   } catch {
-    console.error('Invalid deep link URL');
     return;
   }
 
@@ -177,4 +153,3 @@ export class CapacitorApp {
     });
   }
 }
-
