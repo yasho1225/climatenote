@@ -1,16 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  Heart,
-  Calendar,
-  X,
-  Share2,
-  Leaf,
-  Footprints,
-  UtensilsCrossed,
-  Pencil,
-  MapPin,
-  Search,
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Users, Heart, Calendar, X, Share2, Flag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
 import { UserNote, UserProfile } from '../types';
@@ -75,9 +64,25 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
   const [trendingFilter, setTrendingFilter] = useState<string | null>(null);
   const { nextGeneration, isCurrent } = useRequestGuard();
 
-  const loadNotes = useCallback(async () => {
-    const generation = nextGeneration();
-    setLoading(true);
+  const handleReport = async (noteId: string) => {
+    try {
+      await supabase.from('content_reports').insert({
+        note_id: noteId,
+        reporter_id: userProfile?.id ?? null,
+        reported_at: new Date().toISOString(),
+      });
+    } catch {
+      // report stored best-effort; don't surface errors to user
+    }
+    showToast('Thank you. We will review this content within 24 hours.', 'success');
+    setPopupNote(null);
+  };
+
+  useEffect(() => {
+    loadNotes();
+  }, [filter, userProfile]);
+
+  const loadNotes = async () => {
     try {
       const { data: notesData, error: notesError } = await supabase
         .from('user_notes')
@@ -432,8 +437,10 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
                 {publicAuthorInitial(popupNote.note.user_profiles)}
               </div>
               <div>
-                <p className="font-bold text-ink">{publicAuthorName(popupNote.note.user_profiles)}</p>
-                <div className="flex items-center gap-1.5 text-xs text-ink-muted mt-0.5">
+                <p className="font-bold text-gray-900">
+                  Climate Champion
+                </p>
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <Calendar className="w-3 h-3" />
                   <span>{timeAgo(popupNote.note.created_at)}</span>
                 </div>
@@ -482,6 +489,17 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
                 >
                   <Share2 className="w-4 h-4" />
                   Share
+                </button>
+              )}
+
+              {/* Report button — only for other users' notes */}
+              {userProfile && popupNote.note.user_id !== userProfile.id && (
+                <button
+                  onClick={() => handleReport(popupNote.note.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-500 transition-all shadow-md"
+                >
+                  <Flag className="w-4 h-4" />
+                  Report
                 </button>
               )}
             </div>

@@ -5,9 +5,7 @@ import { requireAuthenticatedUser, createServiceClient } from '../_shared/auth.t
 import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts';
 import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts';
-import { callGeminiGenerateContent } from '../_shared/gemini.ts';
 import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts';
-import { isValidUuid } from '../_shared/requestGuards.ts';
 
 const ENDPOINT = 'generate-article-insights';
 
@@ -56,29 +54,6 @@ function parseGeminiJson(raw: string): unknown {
     .replace(/\s*```$/i, '')
     .trim();
   return JSON.parse(cleaned);
-}
-
-function coerceChartValues(chart: Record<string, unknown>): void {
-  if (!Array.isArray(chart.values)) return;
-  chart.values = chart.values.map((value) => {
-    if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, value);
-    const parsed = parseFloat(String(value).replace(/,/g, ''));
-    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-  });
-}
-
-function normalizeInsightsPayload(data: unknown): unknown {
-  if (!data || typeof data !== 'object') return data;
-  const d = data as Record<string, unknown>;
-  const figure = d.figure;
-  if (figure && typeof figure === 'object') {
-    const f = figure as Record<string, unknown>;
-    const chart = f.chart;
-    if (chart && typeof chart === 'object') {
-      coerceChartValues(chart as Record<string, unknown>);
-    }
-  }
-  return data;
 }
 
 function isValidInsights(data: unknown, articleTitle: string): data is Omit<ArticleAiInsights, 'generated_at'> {
@@ -156,7 +131,7 @@ async function generateInsightsWithGemini(
 
   const prompt = `You are an environmental education assistant for teenagers reading climate articles.
 
-Generate structured insights for THIS SPECIFIC article. Every output must reference concrete details from the article — topics, statistics, examples, or solutions mentioned. Never produce generic climate advice.
+Generate structured insights for THIS SPECIFIC article. Every output must reference concrete details from the article â€” topics, statistics, examples, or solutions mentioned. Never produce generic climate advice.
 
 Article title: "${article.title}"
 ${article.subtitle ? `Subtitle: "${article.subtitle}"` : ''}
@@ -192,7 +167,7 @@ Rules for summary (3-4 bullets):
 
 Rules for choices (exactly 3):
 - Each starts with "I will" or "I'll"
-- SPECIFIC to this article's topic — name the actual issue (e.g. fast fashion, microplastics, food waste)
+- SPECIFIC to this article's topic â€” name the actual issue (e.g. fast fashion, microplastics, food waste)
 - Concrete real-world actions a teenager can do at home, school, or when shopping
 - Vary difficulty: one small/immediate, one medium, one bigger lifestyle shift
 - NEVER use vague phrases like "research more", "make a change", "track progress", "be more aware"
@@ -205,17 +180,30 @@ Rules for figure:
 
 Return ONLY the JSON object. No markdown, no explanation.`;
 
-  const raw = await callGeminiGenerateContent(
-    geminiKey,
-    prompt,
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
     {
-      temperature: 0.7,
-      maxOutputTokens: 2048,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1200,
+        },
+      }),
     },
-    { jsonMode: true },
   );
 
-  const parsed = normalizeInsightsPayload(parseGeminiJson(raw)) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new Error(`Gemini error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!raw) throw new Error('Empty Gemini response');
+
+  const parsed = parseGeminiJson(raw);
   if (!isValidInsights(parsed, article.title)) {
     throw new Error('Invalid insights format from AI');
   }
@@ -271,7 +259,7 @@ serve(async (req) => {
     const body = await req.json();
     const { article_id, force_regenerate } = body;
 
-    if (typeof article_id !== 'string' || !isValidUuid(article_id)) {
+    if (typeof article_id !== 'string' || article_id.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Invalid article_id' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -300,22 +288,7 @@ serve(async (req) => {
     }
 
     const cached = article.ai_insights as ArticleAiInsights | null;
-    const cachedFigure = cached?.figure;
-    const hasValidCachedChart =
-      cachedFigure &&
-      typeof cachedFigure === 'object' &&
-      (cachedFigure.chart === null ||
-        (Array.isArray(cachedFigure.chart?.labels) &&
-          Array.isArray(cachedFigure.chart?.values) &&
-          cachedFigure.chart.labels.length >= 2));
-
-    if (
-      cached?.summary?.length &&
-      cached?.choices?.length &&
-      cachedFigure &&
-      hasValidCachedChart &&
-      !force_regenerate
-    ) {
+    if (cached?.summary?.length && cached?.choices?.length && cached?.figure && !force_regenerate) {
       logSecurityEvent({ endpoint: ENDPOINT, result: 'allowed', reason: 'cache_hit', user_id: user.id, ip });
       return new Response(
         JSON.stringify({ insights: cached, cached: true }),

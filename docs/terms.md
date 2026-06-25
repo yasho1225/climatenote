@@ -171,10 +171,10 @@ Your continued use of the App after changes take effect constitutes acceptance o
 ## Dispute Resolution
 
 ### Governing Law
-These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law principles.
+These Terms are governed by the laws of the jurisdiction where The Climate Note is operated, without regard to conflict of law principles.
 
 ### Informal Resolution
-Before filing a claim, you agree to contact us at support@theclimatenote.app to attempt to resolve the dispute informally.
+Before filing a claim, you agree to contact us at support@theclimatenote.com to attempt to resolve the dispute informally.
 
 ### Arbitration
 Any disputes that cannot be resolved informally will be resolved through binding arbitration, except where prohibited by law.
@@ -203,10 +203,10 @@ We are not liable for any failure or delay in performance due to circumstances b
 
 If you have questions about these Terms of Service, please contact us:
 
-**Email:** support@theclimatenote.app
-**Legal Inquiries:** legal@theclimatenote.app
+**Email:** support@theclimatenote.com
+**Legal Inquiries:** legal@theclimatenote.com
 
-For privacy-related questions, email: privacy@theclimatenote.app
+For privacy-related questions, email: privacy@theclimatenote.com
 
 ---
 

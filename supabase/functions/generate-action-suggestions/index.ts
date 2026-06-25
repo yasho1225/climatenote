@@ -7,26 +7,9 @@ import { requireAuthenticatedUser, createServiceClient } from '../_shared/auth.t
 import { getCorsHeaders, handleCorsPreflight } from '../_shared/cors.ts';
 import { checkRateLimit, rateLimitKeyFromAuth } from '../_shared/rateLimit.ts';
 import { areAiEndpointsEnabled } from '../_shared/securityFlags.ts';
-import { callGeminiGenerateContent } from '../_shared/gemini.ts';
 import { getClientIp, logSecurityEvent } from '../_shared/securityLog.ts';
-import { isValidUuid } from '../_shared/requestGuards.ts';
 
 const ENDPOINT = 'generate-action-suggestions';
-
-function normalizeSuggestionsPayload(parsed: unknown): string[] | null {
-  if (Array.isArray(parsed) && parsed.length === 3 && parsed.every((s) => typeof s === 'string')) {
-    return parsed;
-  }
-  if (parsed && typeof parsed === 'object') {
-    for (const key of ['suggestions', 'choices', 'actions']) {
-      const value = (parsed as Record<string, unknown>)[key];
-      if (Array.isArray(value) && value.length === 3 && value.every((s) => typeof s === 'string')) {
-        return value as string[];
-      }
-    }
-  }
-  return null;
-}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -65,13 +48,6 @@ serve(async (req) => {
     }
 
     const { article_id, article_title, article_subtitle, key_takeaways, article_content, force_regenerate } = await req.json();
-
-    if (typeof article_id === 'string' && article_id.length > 0 && !isValidUuid(article_id)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid article_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
 
     // Return cached choices from article if available
     if (typeof article_id === 'string' && article_id.length > 0 && !force_regenerate) {
@@ -148,9 +124,9 @@ ${contentSnippet ? `Article excerpt: ${contentSnippet}` : ''}
 
 Rules for each suggestion:
 - Start with "I will" or "I'll"
-- Be SPECIFIC to this article's topic — mention the actual issue (e.g. fast fashion, microplastics, food waste)
+- Be SPECIFIC to this article's topic â€” mention the actual issue (e.g. fast fashion, microplastics, food waste)
 - Be a concrete, real-world action (e.g. "I'll buy my next item of clothing secondhand instead of new" NOT "I'll make a change")
-- Be realistic for a teenager — something doable at home, school, or when shopping
+- Be realistic for a teenager â€” something doable at home, school, or when shopping
 - Vary the suggestions: one small/immediate action, one medium effort, one bigger lifestyle shift
 - Do NOT use vague phrases like "research more", "make a change", "track progress", "be more aware"
 - Each action should name a specific behavior change
@@ -158,7 +134,7 @@ Rules for each suggestion:
 Good examples for a fast fashion article:
 ["I'll check a thrift store before buying new clothes next time I need something", "I will wash my synthetic clothes in a microplastic-catching laundry bag", "I'll go through my closet and donate clothes I haven't worn in 6 months instead of throwing them away"]
 
-Bad examples (too vague — never do this):
+Bad examples (too vague â€” never do this):
 ["I will research more about fast fashion", "I'll make one small change in my daily routine", "I will track my progress for 7 days"]
 
 Return ONLY a valid JSON object with this exact shape:
@@ -170,10 +146,16 @@ No explanation, no markdown.`;
       geminiKey,
       prompt,
       {
-        temperature: 0.8,
-        maxOutputTokens: 1200,
-      },
-      { jsonMode: true },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 400,
+          },
+        }),
+      }
     );
 
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();

@@ -13,11 +13,14 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      // OAuth callback is handled explicitly in oauthCallback.ts to avoid
-      // double exchange with detectSessionInUrl (which causes false failures).
-      detectSessionInUrl: false,
+      // PKCE + detectSessionInUrl are the supabase-js v2 defaults; set them
+      // explicitly to document the web OAuth redirect contract — the web build
+      // exchanges the `?code=...` callback on load. The native iOS Apple flow
+      // uses signInWithIdToken and relies on none of this.
       flowType: 'pkce',
+      detectSessionInUrl: true,
       persistSession: true,
+      autoRefreshToken: true,
     },
   }
 );

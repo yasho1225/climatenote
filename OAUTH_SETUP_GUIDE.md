@@ -89,7 +89,7 @@ This guide will help you set up Google and Apple social authentication for your 
 5. Select **App** → Click "Continue"
 6. Fill in:
    - **Description**: `The Climate Note`
-   - **Bundle ID**: `com.theclimatenote.app` (must match `ios/App/App/Info.plist`)
+   - **Bundle ID**: `com.theclimatenote.app` (or your existing bundle ID)
    - **Capabilities**: Check "Sign in with Apple"
 7. Click "Continue" → "Register"
 
@@ -143,7 +143,18 @@ This guide will help you set up Google and Apple social authentication for your 
    - **Secret Key (p8 file)**: Open the `.p8` file you downloaded, copy entire contents (including BEGIN/END lines)
    - **Key ID**: (from Step 4)
    - **Team ID**: (from Step 4)
-7. Click "Save"
+7. **Authorized Client IDs** (required for the native iOS sheet): add the app's
+   **bundle ID** `com.theclimatenote.app`. The native flow sends Apple's identity
+   token to Supabase, and that token's audience is the bundle ID (not the Services
+   ID). Without this, native sign-in fails with an "Unacceptable audience" error.
+   The Services ID (web) and the bundle ID (native) coexist here — add both.
+8. Click "Save"
+
+> **Why two flows?** The website uses Apple's web OAuth redirect (Services ID +
+> `.p8` secret). The iOS app uses the **native** Sign in with Apple sheet via the
+> `@capacitor-community/apple-sign-in` plugin + `supabase.auth.signInWithIdToken`,
+> because the web redirect cannot return to the native app. Both authenticate
+> against this same Supabase Apple provider.
 
 ---
 
@@ -168,12 +179,20 @@ VITE_APP_URL=https://yourdomain.com
 4. Both should redirect properly and create user accounts
 
 ### For iOS App (Capacitor):
-1. **Supabase redirect URL** (required for in-app Google OAuth):
-   - Supabase Dashboard → **Authentication** → **URL Configuration** → **Redirect URLs**
-   - Add: `com.theclimatenote.app://auth/callback`
-2. OAuth opens in an **in-app browser sheet** (not external Safari) and returns via that URL scheme.
-3. In Xcode: **Signing & Capabilities** → add **Sign in with Apple** (native Apple sign-in — configure in Part 2).
-4. Build and test on a **physical device** (simulator OAuth can behave differently).
+The native Sign in with Apple sheet is already wired up in the repo:
+- The `@capacitor-community/apple-sign-in` plugin is in `package.json`.
+- The "Sign in with Apple" capability is committed via `ios/App/App/App.entitlements`
+  and the project's `CODE_SIGN_ENTITLEMENTS` build setting.
+
+To build and test:
+1. `npm run build && npx cap sync ios && npx cap open ios`
+2. In Xcode, confirm **Signing & Capabilities** shows "Sign in with Apple"
+   (it should already be present from the committed entitlements).
+3. Ensure the App ID `com.theclimatenote.app` has the "Sign in with Apple"
+   capability enabled in the Apple Developer portal (Part 2, Step 1).
+4. **Test on a real device signed into an Apple ID** (or a simulator signed into
+   one — a fresh simulator with no Apple ID will error). Tapping "Sign in with
+   Apple" should present the **native** sheet (Face ID/Touch ID), not a browser.
 
 ---
 
@@ -185,10 +204,13 @@ VITE_APP_URL=https://yourdomain.com
 - **"Invalid client"**: Verify Client ID and Secret in Supabase match Google Cloud Console
 
 ### Apple Sign In Issues:
-- **"invalid_client"**: Check Service ID matches exactly in Supabase
-- **"invalid_grant"**: Verify .p8 key file content was copied completely (including BEGIN/END lines)
+- **"invalid_client"** (web flow): Check Service ID matches exactly in Supabase
+- **"invalid_grant"** (web flow): Verify .p8 key file content was copied completely (including BEGIN/END lines)
 - **Domain not verified**: Make sure domain in Apple Developer matches Supabase project URL exactly
 - **Key ID mismatch**: Double-check Key ID and Team ID in Supabase
+- **"Unacceptable audience"** (native iOS): add the bundle ID `com.theclimatenote.app` to the Apple provider's **Authorized Client IDs** in Supabase (Part 2, Step 5).
+- **"Nonce mismatch"** (native iOS): the raw/hashed nonce was swapped — the hashed nonce goes to Apple, the raw nonce to `signInWithIdToken` (handled in `src/lib/appleAuth.ts`).
+- **Native sheet doesn't appear / errors immediately**: test on a real device or a simulator signed into an Apple ID; confirm the "Sign in with Apple" capability is present in Xcode.
 
 ### General Auth Issues:
 - Check browser console for errors

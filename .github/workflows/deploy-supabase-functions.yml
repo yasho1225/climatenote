@@ -76,7 +76,7 @@ jobs:
 
       - name: Deployment Complete
         run: |
-          echo "✅ All Edge Functions deployed successfully!"
+          echo "âœ… All Edge Functions deployed successfully!"
           echo "Functions deployed:"
           echo "  - generate-article-insights"
           echo "  - generate-action-suggestions"

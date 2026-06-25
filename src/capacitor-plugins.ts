@@ -31,20 +31,22 @@ export class CapacitorNotifications {
   }
 
   static async setupNotificationListeners() {
-    if (notificationListenersRegistered) {
-      return;
-    }
-    notificationListenersRegistered = true;
-
-    PushNotifications.addListener('pushNotificationReceived', () => {
-      console.log('Push notification received');
+    // Handle notification received
+    PushNotifications.addListener('pushNotificationReceived', (_notification) => {
+      // handled by system
     });
 
-    PushNotifications.addListener('pushNotificationActionPerformed', () => {
-      window.location.href = '/';
+    // Handle notification action performed
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      // Navigate to the app when notification is tapped
+      if (notification.actionId === 'tap') {
+        // You can add navigation logic here
+        window.location.href = '/';
+      }
     });
 
-    LocalNotifications.addListener('localNotificationActionPerformed', () => {
+    // Handle local notification action
+    LocalNotifications.addListener('localNotificationActionPerformed', (_notification) => {
       window.location.href = '/';
     });
 
@@ -154,9 +156,14 @@ export class CapacitorApp {
     }
     appListenersRegistered = true;
 
-    App.addListener('appStateChange', async ({ isActive }) => {
+    App.addListener('appStateChange', ({ isActive }) => {
+      
       if (isActive) {
         window.dispatchEvent(new CustomEvent('app-became-active'));
+      }
+    });
+
+    App.addListener('appUrlOpen', async (event) => {
 
         const { loadNotificationSettings } = await import('./lib/notificationScheduler');
         const settings = loadNotificationSettings();

@@ -78,11 +78,10 @@ export default function DemoMode() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Demo Banner */}
+      {/* Preview Banner */}
       <div className="bg-emerald-600 text-white py-2 px-6 text-center">
         <p className="text-sm">
-          🌱 <strong>Demo Mode</strong> - This is a preview of The Climate Note platform. 
-          <span className="ml-2">Connect your database to enable full functionality.</span>
+          🌱 <strong>The Climate Note</strong> — Explore our platform. Sign up to save your notes and track your impact.
         </p>
       </div>
 

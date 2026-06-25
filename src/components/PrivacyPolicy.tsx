@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
             <Shield className="w-8 h-8 text-emerald-600" />
             <h1 className="text-3xl font-bold text-gray-900">Privacy Policy</h1>
           </div>
-          <p className="text-gray-600">Last updated: January 15, 2025</p>
+          <p className="text-gray-600">Last updated: March 22, 2026</p>
         </div>
 
         {/* Content */}
@@ -117,12 +117,12 @@ export default function PrivacyPolicy() {
             <p>If you have questions about this Privacy Policy, contact us at:</p>
             <ul className="space-y-2">
               <li><strong>Email:</strong> privacy@theclimatenote.com</li>
-              <li><strong>Website:</strong> https://theclimatenote.bolt.host</li>
+              <li><strong>Website:</strong> https://yasho1225.github.io/climatenote</li>
             </ul>
 
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mt-8">
               <p className="text-emerald-800 text-sm">
-                <strong>This privacy policy was last updated on January 15, 2025.</strong>
+                <strong>This privacy policy was last updated on March 22, 2026.</strong>
               </p>
             </div>
           </div>

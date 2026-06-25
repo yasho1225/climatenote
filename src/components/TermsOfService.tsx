@@ -23,7 +23,7 @@ export default function TermsOfService() {
             <FileText className="w-8 h-8 text-emerald-600" />
             <h1 className="text-3xl font-bold text-gray-900">Terms of Service</h1>
           </div>
-          <p className="text-gray-600">Last updated: January 15, 2025</p>
+          <p className="text-gray-600">Last updated: March 22, 2026</p>
         </div>
 
         {/* Content */}
@@ -147,12 +147,12 @@ export default function TermsOfService() {
             <p>If you have questions about these Terms of Service, contact us at:</p>
             <ul className="space-y-2">
               <li><strong>Email:</strong> legal@theclimatenote.com</li>
-              <li><strong>Website:</strong> https://theclimatenote.bolt.host</li>
+              <li><strong>Website:</strong> https://yasho1225.github.io/climatenote</li>
             </ul>
 
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mt-8">
               <p className="text-emerald-800 text-sm">
-                <strong>These terms of service were last updated on January 15, 2025.</strong>
+                <strong>These terms of service were last updated on March 22, 2026.</strong>
               </p>
             </div>
           </div>

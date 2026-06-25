@@ -2,14 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Mail, ArrowRight, Lock, Leaf } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
-import { getAuthRedirectUrl } from '../lib/authRedirect';
-import { openInAppOAuth } from '../lib/nativeOAuth';
-import {
-  getEnabledOAuthProviders,
-  getOAuthProviderSetupMessage,
-  type EnabledOAuthProviders,
-  type OAuthProvider,
-} from '../lib/authProviders';
+import { signInWithAppleNative, isUserCancel } from '../lib/appleAuth';
 import { showToast } from './ui/Toast';
 import AppShell from './ui/AppShell';
 import GradientButton from './ui/GradientButton';
@@ -42,9 +35,47 @@ export default function LandingPage() {
   });
   const [oauthReady, setOauthReady] = useState(false);
 
-  const isNative = Capacitor.isNativePlatform();
 
-  useScrollToTop(step);
+  const handleSocialAuth = async (provider: 'google' | 'apple') => {
+    setLoading(true);
+    try {
+      // Native iOS: use the native Sign in with Apple sheet instead of the web
+      // OAuth redirect. The redirect flow can't return to the native app (no
+      // custom URL scheme / Universal Link is registered), so it would never
+      // complete. signInWithAppleNative authenticates Supabase directly.
+      if (
+        provider === 'apple' &&
+        Capacitor.isNativePlatform() &&
+        Capacitor.getPlatform() === 'ios'
+      ) {
+        try {
+          await signInWithAppleNative();
+          // On success Supabase sets the session; App.tsx's onAuthStateChange
+          // re-renders into the Dashboard, so we intentionally leave loading
+          // on until this component unmounts.
+        } catch (err) {
+          if (isUserCancel(err)) {
+            // User dismissed the Apple sheet — not an error.
+            setLoading(false);
+            return;
+          }
+          console.error('Apple native sign-in error:', err);
+          showToast('Failed to sign in with Apple. Please try again.', 'error');
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (Capacitor.isNativePlatform()) {
+        // On native iOS/Android, use in-app browser (SFSafariViewController)
+        // to comply with App Store guideline 4 (no external browser for auth)
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
+            skipBrowserRedirect: true,
+          },
+        });
 
   useEffect(() => {
     getEnabledOAuthProviders().then((providers) => {

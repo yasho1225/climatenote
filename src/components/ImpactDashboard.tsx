@@ -58,11 +58,29 @@ export default function ImpactDashboard({ userProfile }: ImpactDashboardProps) {
   }
 
   return (
-    <div className="app-screen space-y-4">
-      {/* Mastery */}
-      <div className="app-feature-card text-center py-7">
-        <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-gradient-to-b from-sky-100 to-sage-200 flex items-center justify-center shadow-community border-[3px] border-white">
-          <span className="text-5xl" role="img" aria-label="Planet">🌍</span>
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center space-x-2 bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-medium">
+          <Globe className="w-4 h-4" />
+          <span>Estimated Environmental Impact</span>
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900">Together We're Making a Difference</h2>
+        <p className="text-gray-500">Every note you write represents a real action for the planet</p>
+      </div>
+
+      {/* Tab Switch */}
+      {userProfile && (
+        <div className="flex space-x-1 bg-gray-100 rounded-xl p-1">
+          <button onClick={() => setTab('collective')}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'collective' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500'}`}>
+            🌍 Collective Impact
+          </button>
+          <button onClick={() => setTab('mine')}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'mine' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500'}`}>
+            ✨ My Impact
+          </button>
         </div>
         <p className="text-[10px] font-bold tracking-[0.14em] text-sage-600 uppercase mb-1">
           Current Mastery

@@ -99,12 +99,12 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
     }
 
     if (permission === 'granted') {
-      new Notification('Test Reminder 🌱', {
+      new Notification('Daily Reminder 🌱', {
         body: 'This is how your daily climate note reminder will look!',
         icon: '/favicon.ico',
         tag: 'climate-note-test',
       });
-      showToast('Test notification sent!', 'success');
+      showToast('Sample reminder sent!', 'success');
     } else {
       showToast('Please enable notifications first', 'error');
     }
@@ -200,17 +200,15 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
             />
           </div>
 
+          {/* Tip */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
             <div className="flex items-center space-x-3 mb-2">
               <Globe className="w-5 h-5 text-emerald-600" />
-              <h3 className="font-medium text-emerald-900">Coming Soon</h3>
+              <h3 className="font-medium text-emerald-900">Tip</h3>
             </div>
-            <ul className="text-sm text-emerald-800 space-y-1">
-              <li>• Email reminders</li>
-              <li>• Streak recovery notifications</li>
-              <li>• Weekly progress summaries</li>
-              <li>• Community milestone alerts</li>
-            </ul>
+            <p className="text-sm text-emerald-800">
+              Enable notifications to stay consistent with your daily climate reading habit and protect your streak.
+            </p>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -227,7 +225,7 @@ export default function NotificationSettings({ onClose }: NotificationSettingsPr
                 onClick={testNotification}
                 className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                Test
+                Preview
               </button>
             )}
           </div>
