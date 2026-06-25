@@ -40,14 +40,10 @@ function toIsoDate(year: string, month: string, day: string): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Convert a Chicago wall-clock time on a given date to a UTC ISO string. */
-function chicagoLocalToUtcIso(dateStr: string, hour: number, minute: number, second: number): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const targetDate = dateStr;
-  const targetTime = `${pad(hour)}:${pad(minute)}:${pad(second)}`;
-
+/** Offset (ms) such that: UTC instant + offsetMs formats as those wall-clock parts in `timeZone`. */
+function getTimezoneOffsetMs(timeZone: string, utcInstant: Date): number {
   const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: APP_TIMEZONE,
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -57,29 +53,51 @@ function chicagoLocalToUtcIso(dateStr: string, hour: number, minute: number, sec
     hour12: false,
   });
 
-  const readChicago = (ms: number) => {
-    const parts = Object.fromEntries(
-      formatter.formatToParts(new Date(ms)).map((part) => [part.type, part.value])
-    );
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-  };
+  const parts = Object.fromEntries(
+    formatter.formatToParts(utcInstant).map((part) => [part.type, part.value]),
+  );
 
+  const hour = Number(parts.hour);
+  const asUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    hour === 24 ? 0 : hour,
+    Number(parts.minute),
+    Number(parts.second),
+  );
+
+  return asUtc - utcInstant.getTime();
+}
+
+/** Convert a Chicago wall-clock time on a given date to a UTC ISO string. */
+function chicagoLocalToUtcIso(dateStr: string, hour: number, minute: number, second: number): string {
   const [year, month, day] = dateStr.split('-').map(Number);
-  let guess = Date.UTC(year, month - 1, day, hour + 6, minute, second);
+  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
 
-  for (let i = 0; i < 8; i++) {
-    const got = readChicago(guess);
-    const target = `${targetDate}T${targetTime}`;
-    if (got === target) {
-      return new Date(guess).toISOString();
+  // Seed with offset at local noon on that calendar day (handles CST vs CDT).
+  const noonProbe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  let guess = localAsUtc - getTimezoneOffsetMs(APP_TIMEZONE, noonProbe);
+
+  // Fixed-point refinement (converges in 1–2 steps; safe on DST transition days).
+  for (let i = 0; i < 4; i++) {
+    const instant = new Date(guess);
+    if (Number.isNaN(instant.getTime())) {
+      break;
     }
-
-    const targetMs = Date.parse(`${target}Z`);
-    const gotMs = Date.parse(`${got}Z`);
-    guess += targetMs - gotMs;
+    const nextGuess = localAsUtc - getTimezoneOffsetMs(APP_TIMEZONE, instant);
+    if (nextGuess === guess) {
+      break;
+    }
+    guess = nextGuess;
   }
 
-  return new Date(guess).toISOString();
+  const result = new Date(guess);
+  if (Number.isNaN(result.getTime())) {
+    throw new RangeError(`Invalid time value for Chicago local ${dateStr} ${hour}:${minute}:${second}`);
+  }
+
+  return result.toISOString();
 }
 
 function dayBoundsUtc(dateStr: string): { start: string; end: string } {
