@@ -2,30 +2,33 @@
   "name": "the-climate-note",
   "private": true,
   "version": "1.0.0",
+  "packageManager": "npm@10.9.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prod": "node scripts/validate-production-env.mjs && vite build",
+    "icons:generate": "node scripts/generate-app-icons.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview",
-    "ios:build": "npm run build && npx cap sync ios && npx cap open ios",
+    "ios:build": "npm run build:prod && npx cap sync ios && npx cap open ios",
     "ios:run": "npm run build && npx cap run ios",
     "capacitor:sync": "npx cap sync",
     "capacitor:open:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/apple-sign-in": "^7.1.0",
     "@capacitor/app": "^7.1.0",
     "@capacitor/browser": "^7.0.5",
-    "@capacitor/cli": "^7.6.2",
+    "@capacitor/cli": "^7.6.6",
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
     "@capacitor/local-notifications": "^7.0.3",
-    "@capacitor/push-notifications": "^7.0.3",
     "@capacitor/splash-screen": "^7.0.3",
     "@capacitor/status-bar": "^7.0.3",
     "@supabase/supabase-js": "^2.108.1",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.11",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -42,6 +45,7 @@
     "globals": "^15.9.0",
     "jsdom": "^29.0.2",
     "postcss": "^8.4.35",
+    "sharp": "^0.34.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.61.0",
@@ -53,6 +57,7 @@
     "brace-expansion@1.1.11": "1.1.15",
     "brace-expansion@2.0.1": "2.0.3",
     "esbuild": "0.28.1",
+    "tar": "7.5.16",
     "ws": "8.21.0"
   }
 }
