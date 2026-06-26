@@ -17,7 +17,7 @@ The Climate Note provides:
 - A platform for writing personal action notes
 - Community features to share and view climate commitments
 - Streak tracking and gamification elements
-- Push notifications and reminders
+- Optional local reminders (scheduled on your device — no data sent to servers)
 
 ## Eligibility
 
@@ -99,9 +99,9 @@ We expect all users to:
 
 ## Notifications
 
-- You may receive push notifications about daily articles, streaks, and app updates
-- You can disable notifications at any time through the App settings or device settings
-- We will not send promotional notifications without your consent
+- The app offers optional **local reminders** — these are scheduled entirely on your device by iOS and do not involve any server communication
+- You can enable or disable reminders at any time through the App settings or iOS Settings
+- We do not send remote push notifications
 
 ## Subscriptions and Payments
 
@@ -112,7 +112,7 @@ The Climate Note is currently a free service. If we introduce paid features in t
 
 ## Privacy
 
-Your use of the App is subject to our Privacy Policy, which explains how we collect, use, and protect your information. Please review our [Privacy Policy](privacy.md).
+Your use of the App is subject to our Privacy Policy, which explains how we collect, use, and protect your information. Please review our [Privacy Policy](privacy).
 
 ## Disclaimers
 

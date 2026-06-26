@@ -1,4 +1,6 @@
 title: The Climate Note
 description: Legal documents for The Climate Note app
+baseurl: /climatenote
+url: https://yasho1225.github.io
 markdown: kramdown
 theme: minima
