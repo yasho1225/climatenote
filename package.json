@@ -25,7 +25,7 @@
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
     "@capacitor/local-notifications": "^7.0.3",
-    "@capacitor/splash-screen": "^7.0.3",
+    "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^7.0.3",
     "@supabase/supabase-js": "^2.108.1",
     "dompurify": "^3.4.11",
