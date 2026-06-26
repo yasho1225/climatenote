@@ -11,6 +11,7 @@ import {
   MapPin,
   Search,
   Flag,
+  EyeOff,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from './ui/Toast';
@@ -76,7 +77,26 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
   const [feedSearch, setFeedSearch] = useState('');
   const [trendingFilter, setTrendingFilter] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<{ noteId: string; excerpt: string } | null>(null);
+  const [hiddenUsers, setHiddenUsers] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('hidden_users');
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const { nextGeneration, isCurrent } = useRequestGuard();
+
+  const hideUser = useCallback((userId: string) => {
+    setHiddenUsers((prev) => {
+      const next = new Set(prev);
+      next.add(userId);
+      try { localStorage.setItem('hidden_users', JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+    setPopupNote(null);
+    showToast('Posts from this user will no longer appear in your feed.', 'success');
+  }, []);
 
   const loadNotes = useCallback(async () => {
     const generation = nextGeneration();
@@ -175,6 +195,8 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
       : null;
 
     return notes.filter((note) => {
+      if (hiddenUsers.has(note.user_id)) return false;
+
       const author = publicAuthorName(note.user_profiles).toLowerCase();
       const content = note.content.toLowerCase();
       const articleTitle = note.articles.title.toLowerCase();
@@ -193,7 +215,7 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
 
       return true;
     });
-  }, [notes, feedSearch, trendingFilter]);
+  }, [notes, feedSearch, trendingFilter, hiddenUsers]);
 
   const handleEncourage = async (noteId: string, currentlyReacted: boolean) => {
     if (!userProfile) {
@@ -516,6 +538,18 @@ export default function NotebookView({ userProfile, onWriteNote }: NotebookViewP
                 <Flag className="w-4 h-4" aria-hidden />
                 Report
               </button>
+
+              {userProfile && popupNote.note.user_id !== userProfile.id && (
+                <button
+                  type="button"
+                  onClick={() => hideUser(popupNote.note.user_id)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold border border-sage-200 text-ink-muted hover:text-forest hover:bg-sage-50"
+                  aria-label="Hide posts from this user"
+                >
+                  <EyeOff className="w-4 h-4" aria-hidden />
+                  Hide user
+                </button>
+              )}
             </div>
           </div>
         </>

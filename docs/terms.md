@@ -175,7 +175,7 @@ Your continued use of the App after changes take effect constitutes acceptance o
 ## Dispute Resolution
 
 ### Governing Law
-These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law principles.
+These Terms are governed by applicable law, without regard to conflict of law principles.
 
 ### Informal Resolution
 Before filing a claim, you agree to contact us at support@theclimatenote.app to attempt to resolve the dispute informally.

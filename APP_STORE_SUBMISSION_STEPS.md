@@ -187,11 +187,14 @@ How to test:
   1. Sign in with demo account (or Sign in with Apple).
   2. Read today's article on Home tab.
   3. Add a climate action note — streak updates on Profile.
-  4. Profile → Settings → Delete Account (optional; use a throwaway if testing deletion).
+  4. Profile → Delete account (optional; use a throwaway account if testing deletion).
 
 Account deletion: Profile → Danger zone → Delete account → type DELETE.
 
 Sign in with Apple: offered alongside Google; required for apps with third-party login.
+
+Community moderation: Community tab → tap a note → Report (submits to our moderation queue).
+Users can also hide any other user's posts: tap note → Hide user.
 
 No ads. No tracking. Local notification reminders only (user opts in via Settings).
 ```
@@ -208,7 +211,7 @@ On a **physical iPhone**, verify:
 - [ ] Email sign-up with terms checkbox
 - [ ] Write a note; streak/level updates
 - [ ] AI insights load (or graceful message if API down)
-- [ ] Profile → open Privacy Policy & Terms (browser opens)
+- [ ] Profile → open Privacy Policy & Terms (opens inside the app)
 - [ ] Profile → enable reminder → iOS permission prompt appears **only when user toggles**
 - [ ] Profile → Delete account (use throwaway account)
 - [ ] No DemoMode, no blank icon, no crash on back navigation
