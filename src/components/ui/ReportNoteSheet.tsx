@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Flag, X } from 'lucide-react';
 import { openReportContent } from '../../lib/legalLinks';
+import { showToast } from './Toast';
 
 interface ReportNoteSheetProps {
   noteId: string;
@@ -10,10 +11,19 @@ interface ReportNoteSheetProps {
 
 export default function ReportNoteSheet({ noteId, excerpt, onClose }: ReportNoteSheetProps) {
   const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    openReportContent(noteId, excerpt, reason.trim() || undefined);
-    onClose();
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await openReportContent(noteId, excerpt, reason.trim() || undefined);
+      showToast('Report submitted. We review reports within 24–48 hours.', 'success');
+    } catch {
+      showToast('Could not submit report. Please try again.', 'error');
+    } finally {
+      setSubmitting(false);
+      onClose();
+    }
   };
 
   return (
@@ -63,16 +73,21 @@ export default function ReportNoteSheet({ noteId, excerpt, onClose }: ReportNote
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-sage-200 text-ink-soft font-semibold text-sm hover:bg-mist"
+            disabled={submitting}
+            className="flex-1 py-3 rounded-xl border border-sage-200 text-ink-soft font-semibold text-sm hover:bg-mist disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
-            className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700"
+            onClick={() => void handleSubmit()}
+            disabled={submitting}
+            className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Send report
+            {submitting ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : null}
+            {submitting ? 'Sending…' : 'Send report'}
           </button>
         </div>
       </div>

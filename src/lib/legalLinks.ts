@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { supabase } from './supabase';
 
 const DEFAULT_PRIVACY_URL =
   import.meta.env.VITE_PRIVACY_URL ||
@@ -34,7 +35,35 @@ export function openSupportEmail(subject = 'The Climate Note Support') {
   window.location.href = mailto;
 }
 
-export function openReportContent(noteId: string, excerpt: string, reason?: string) {
+/**
+ * Report a community note. Tries to store the report in the database first
+ * (reliable on all devices), then falls back to opening a mailto: link.
+ * Returns true if the database insert succeeded.
+ */
+export async function openReportContent(
+  noteId: string,
+  excerpt: string,
+  reason?: string,
+): Promise<boolean> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from('content_reports').insert({
+      note_id: noteId,
+      excerpt: excerpt.slice(0, 500),
+      reason: reason?.trim() || null,
+      reporter_id: user?.id ?? null,
+    });
+
+    if (!error) {
+      return true;
+    }
+  } catch {
+    // fall through to mailto
+  }
+
   const body = [
     'I would like to report community content.',
     '',
@@ -46,4 +75,5 @@ export function openReportContent(noteId: string, excerpt: string, reason?: stri
     .join('\n');
   const mailto = `mailto:${LEGAL.supportEmail}?subject=${encodeURIComponent('Report community note')}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
+  return false;
 }
