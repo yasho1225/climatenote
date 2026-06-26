@@ -3,7 +3,11 @@ import { SignInWithApple } from '@capacitor-community/apple-sign-in';
 import { supabase } from './supabase';
 
 const APPLE_BUNDLE_ID = 'com.theclimatenote.app';
-const SUPABASE_APPLE_CALLBACK = 'https://noefayakyrmmknqlcklf.supabase.co/auth/v1/callback';
+const SUPABASE_APPLE_CALLBACK = (() => {
+  const base = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  if (base) return `${base.replace(/\/$/, '')}/auth/v1/callback`;
+  return 'https://noefayakyrmmknqlcklf.supabase.co/auth/v1/callback';
+})();
 
 function generateRandomString(length = 32): string {
   const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';

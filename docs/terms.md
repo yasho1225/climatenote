@@ -4,7 +4,7 @@ permalink: /terms
 
 # Terms of Service for The Climate Note
 
-**Effective Date:** March 22, 2026
+**Effective Date:** June 26, 2026
 
 ## Agreement to Terms
 
@@ -17,7 +17,7 @@ The Climate Note provides:
 - A platform for writing personal action notes
 - Community features to share and view climate commitments
 - Streak tracking and gamification elements
-- Push notifications and reminders
+- Optional local reminders (scheduled on your device — no data sent to servers)
 
 ## Eligibility
 
@@ -99,9 +99,9 @@ We expect all users to:
 
 ## Notifications
 
-- You may receive push notifications about daily articles, streaks, and app updates
-- You can disable notifications at any time through the App settings or device settings
-- We will not send promotional notifications without your consent
+- The app offers optional **local reminders** — these are scheduled entirely on your device by iOS and do not involve any server communication
+- You can enable or disable reminders at any time through the App settings or iOS Settings
+- We do not send remote push notifications
 
 ## Subscriptions and Payments
 
@@ -112,7 +112,7 @@ The Climate Note is currently a free service. If we introduce paid features in t
 
 ## Privacy
 
-Your use of the App is subject to our Privacy Policy, which explains how we collect, use, and protect your information. Please review our [Privacy Policy](privacy.md).
+Your use of the App is subject to our Privacy Policy, which explains how we collect, use, and protect your information. Please review our [Privacy Policy](privacy).
 
 ## Disclaimers
 
@@ -175,7 +175,7 @@ Your continued use of the App after changes take effect constitutes acceptance o
 ## Dispute Resolution
 
 ### Governing Law
-These Terms are governed by the laws of [Your Jurisdiction], without regard to conflict of law principles.
+These Terms are governed by applicable law, without regard to conflict of law principles.
 
 ### Informal Resolution
 Before filing a claim, you agree to contact us at support@theclimatenote.app to attempt to resolve the dispute informally.
@@ -216,4 +216,4 @@ For privacy-related questions, email: privacy@theclimatenote.app
 
 **By using The Climate Note, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**
 
-*Last updated: March 22, 2026*
+*Last updated: June 26, 2026*
