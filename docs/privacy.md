@@ -4,7 +4,7 @@ permalink: /privacy
 
 # Privacy Policy for The Climate Note
 
-**Effective Date:** March 22, 2026
+**Effective Date:** June 26, 2026
 
 ## Introduction
 
@@ -88,4 +88,4 @@ Questions about this Privacy Policy:
 
 ---
 
-*Last updated: March 22, 2026*
+*Last updated: June 26, 2026*

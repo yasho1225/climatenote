@@ -23,7 +23,7 @@ export default function TermsOfService() {
             <FileText className="w-7 h-7 text-emerald-600 shrink-0" />
             <h1 className="text-2xl font-bold text-gray-900">Terms of Service</h1>
           </div>
-          <p className="text-sm text-gray-500">Effective date: March 22, 2026</p>
+          <p className="text-sm text-gray-500">Effective date: June 26, 2026</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-7 text-gray-700 text-sm leading-relaxed">
@@ -184,7 +184,7 @@ export default function TermsOfService() {
           </section>
 
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-emerald-800 text-xs">
-            Last updated: March 22, 2026
+            Last updated: June 26, 2026
           </div>
         </div>
       </div>
