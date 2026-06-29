@@ -39,7 +39,9 @@ export default function DeleteAccountScreen({
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to delete account. Please try again.';
-      console.error('Account deletion error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Account deletion error:', err);
+      }
       showToast(message, 'error');
     } finally {
       setDeleting(false);

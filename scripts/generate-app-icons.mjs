@@ -41,11 +41,17 @@ const SPLASH_BG = { r: 238, g: 242, b: 236, alpha: 255 };
 const SPLASH_SIZE = 2732;
 const SPLASH_ICON_SIZE = 600;
 
+/** Apple ITMS-90717 rejects app icons that include an alpha channel. */
+async function writeOpaqueIconPng(input, outPath) {
+  await sharp(input).removeAlpha().png({ force: true }).toFile(outPath);
+}
+
 async function generateIcons(svg) {
   mkdirSync(iconOutDir, { recursive: true });
   for (const [filename, size] of Object.entries(ICONS)) {
     const outPath = join(iconOutDir, filename);
-    await sharp(svg).resize(size, size).png().toFile(outPath);
+    const resized = await sharp(svg).resize(size, size).png().toBuffer();
+    await writeOpaqueIconPng(resized, outPath);
     console.log(`  icon: ${filename} (${size}×${size})`);
   }
 }

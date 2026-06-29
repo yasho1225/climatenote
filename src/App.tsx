@@ -108,7 +108,11 @@ function App() {
 
           } catch {
 
-            console.log('Capacitor not available, running in web mode');
+            if (import.meta.env.DEV) {
+
+              console.log('Capacitor not available, running in web mode');
+
+            }
 
           }
 
@@ -192,7 +196,11 @@ function App() {
 
           } catch (authError) {
 
-            console.error('Auth initialization error:', authError);
+            if (import.meta.env.DEV) {
+
+              console.error('Auth initialization error:', authError);
+
+            }
 
             if (mounted) {
 
@@ -214,7 +222,11 @@ function App() {
 
       } catch (error) {
 
-        console.error('App initialization error:', error);
+        if (import.meta.env.DEV) {
+
+          console.error('App initialization error:', error);
+
+        }
 
         if (mounted) {
 
